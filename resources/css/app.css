@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,300..900;1,300..900&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+
+@theme {
+    --font-sans: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    --color-bozz-dark: #191919;
+    --color-bozz-surface: #292929;
+    --color-bozz-surface-hover: #333333;
+    --color-bozz-border: #383838;
+    --color-bozz-border-subtle: #2d2d2d;
+    --color-bozz-gold: #dea538;
+    --color-bozz-gold-light: #fce2b5;
+    --color-bozz-gold-hover: #c8912c;
+    --color-bozz-gold-text: #fef8ee;
+    --color-bozz-muted: #959595;
+    --color-bozz-text: #fafafa;
+}
+
+/* Custom scrollbar and utility classes */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #191919;
+}
+::-webkit-scrollbar-thumb {
+    background: #383838;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #dea538;
+}
