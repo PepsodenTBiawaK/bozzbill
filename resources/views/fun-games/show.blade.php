@@ -264,5 +264,29 @@
             </div>
         @endif
 
+        @if (auth()->user()?->isAdmin() && ! $funGame->isOpen())
+            <section x-data="{ confirmingDelete: @js($errors->has('delete_confirmation')), confirmation: '' }" class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Hapus Histori Fun Game</h2>
+                        <p class="text-xs text-[#959595] mt-1">Hapus event ini beserta seluruh match dan podium-nya.</p>
+                    </div>
+                    <button type="button" x-on:click="confirmingDelete = !confirmingDelete" :aria-expanded="confirmingDelete" aria-controls="delete-history-form" class="min-h-11 px-4 rounded-xl border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/10 cursor-pointer">Hapus Histori</button>
+                </div>
+                <form id="delete-history-form" method="POST" action="{{ route('fun-games.destroy', $funGame) }}" x-show="confirmingDelete" x-cloak class="pt-3 border-t border-[#333741] space-y-3">
+                    @csrf
+                    @method('DELETE')
+                    <p id="delete-history-impact" class="text-xs text-rose-300 leading-relaxed">Anda akan menghapus <strong>{{ $funGame->title }}</strong> dan {{ $funGame->matches->count() }} match. Statistik dan lencana terkait akan disesuaikan. Penghapusan ini permanen; akun pemain serta riwayat HC tetap tersimpan.</p>
+                    <div>
+                        <label for="delete-confirmation" class="block text-xs font-semibold text-[#d4d4d4] mb-1.5">Ketik HAPUS untuk konfirmasi</label>
+                        <input id="delete-confirmation" name="delete_confirmation" x-model="confirmation" type="text" required autocomplete="off" spellcheck="false" aria-describedby="delete-history-impact" class="w-full sm:max-w-xs min-h-11 bg-[#16171a] border border-[#333741] focus:border-rose-400 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="button" x-on:click="confirmingDelete = false; confirmation = ''" class="min-h-11 px-4 text-xs font-semibold text-[#d4d4d4] cursor-pointer">Batal</button>
+                        <button type="submit" :disabled="confirmation !== 'HAPUS'" class="min-h-11 px-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-500/20 cursor-pointer">Hapus Permanen</button>
+                    </div>
+                </form>
+            </section>
+        @endif
     </div>
 </x-layouts.app>

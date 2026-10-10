@@ -8,6 +8,7 @@ use App\Models\FunGame;
 use App\Models\MatchLog;
 use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -348,7 +349,7 @@ class FunGameController extends Controller
                 'third_place_id' => $validated['third_place_id'] ?? null,
             ]);
 
-            $champion = User::findOrFail($validated['champion_id']);
+            $champion = User::query()->lockForUpdate()->findOrFail($validated['champion_id']);
             $championBadge = Badge::where('slug', 'champion')->first();
 
             if ($championBadge && ! $champion->badges()->where('badge_id', $championBadge->id)->exists()) {
@@ -359,6 +360,71 @@ class FunGameController extends Controller
         return redirect()
             ->route('fun-games.show', $funGame)
             ->with('status_success', "Event '{$funGame->title}' resmi ditutup. Juara telah dinobatkan!");
+    }
+
+    public function destroy(Request $request, FunGame $funGame): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $request->validate([
+            'delete_confirmation' => ['required', 'string', Rule::in(['HAPUS'])],
+        ], [
+            'delete_confirmation.required' => 'Ketik HAPUS untuk mengonfirmasi penghapusan histori.',
+            'delete_confirmation.in' => 'Ketik HAPUS sesuai petunjuk untuk menghapus histori.',
+        ]);
+
+        DB::transaction(function () use ($request, $funGame): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+
+            if ($event->isOpen()) {
+                throw ValidationException::withMessages([
+                    'fun_game' => 'Event masih berjalan. Tutup event sebelum menghapus histori.',
+                ]);
+            }
+
+            $winnerIds = $event->matches()->lockForUpdate()->pluck('winner_id');
+            $podiumWinnerIds = DB::table('fun_game_podium')->where('fun_game_id', $event->id)
+                ->where('position', 1)->lockForUpdate()->pluck('user_id');
+            $championIds = $podiumWinnerIds->push($event->champion_id)->filter()->unique();
+            $players = User::query()->whereIn('id', $winnerIds->merge($championIds)->unique())
+                ->orderBy('id')->lockForUpdate()->get();
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+
+            $event->delete();
+
+            foreach ($players as $player) {
+                if ($winnerIds->contains($player->id)) {
+                    $this->syncGiantKillerBadge($player);
+                }
+
+                if ($championIds->contains($player->id)) {
+                    $this->syncChampionBadge($player);
+                }
+            }
+        });
+
+        return redirect()->route('fun-games.index')
+            ->with('status_success', 'Histori Fun Game beserta seluruh match dan podium berhasil dihapus. Statistik serta lencana terkait sudah disesuaikan.');
+    }
+
+    private function syncChampionBadge(User $player): void
+    {
+        $badge = Badge::query()->where('slug', 'champion')->first();
+
+        if (! $badge) {
+            return;
+        }
+
+        $hasTitle = FunGame::query()->where('status', FunGameStatus::Completed)
+            ->where(function (Builder $query) use ($player): void {
+                $query->where('champion_id', $player->id)
+                    ->orWhereHas('podiumPlayers', fn (Builder $podium): Builder => $podium->where('users.id', $player->id)->where('fun_game_podium.position', 1));
+            })->exists();
+
+        if ($hasTitle) {
+            $player->badges()->syncWithoutDetaching([$badge->id]);
+        } else {
+            $player->badges()->detach($badge->id);
+        }
     }
 
     /**
