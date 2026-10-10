@@ -30,6 +30,7 @@ for directory in "$APP_ROOT" "$RELEASES_DIRECTORY" "$SHARED_DIRECTORY" "$SHARED_
     [[ -d "$directory" && ! -L "$directory" ]] || fail "Server setup is incomplete: $directory"
 done
 [[ -f "$SHARED_DIRECTORY/.env" ]] || fail 'The shared production .env file is missing.'
+id -nG | tr ' ' '\n' | grep -Fxq www-data || fail 'The deployment user must belong to www-data; rerun setup-vps.sh and reconnect.'
 
 exec 9> "$APP_ROOT/.deploy.lock"
 flock -n 9 || fail 'Another deployment is already running.'

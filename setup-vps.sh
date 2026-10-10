@@ -26,7 +26,7 @@ flock -n 9 || fail 'Setup BozzBill sedang dijalankan oleh proses lain.'
 id "$deployment_user" >/dev/null
 deployment_group=$(id -gn "$deployment_user")
 getent group "$web_group" >/dev/null
-for executable in mysql nginx php8.4 php-fpm8.4 openssl install flock; do
+for executable in mysql nginx php8.4 php-fpm8.4 openssl install flock usermod; do
     command -v "$executable" >/dev/null || fail "Program belum tersedia: $executable"
 done
 [[ -f "$script_directory/deploy.sh" ]] || fail 'deploy.sh harus berada di folder yang sama.'
@@ -55,6 +55,10 @@ if [[ ! -f "$managed_marker" ]]; then
     if ss -ltnH 'sport = :8080' | read -r _; then
         fail 'Port 8080 sudah digunakan oleh layanan lain.'
     fi
+fi
+
+if ! id -nG "$deployment_user" | tr ' ' '\n' | grep -Fxq "$web_group"; then
+    usermod -a -G "$web_group" "$deployment_user"
 fi
 
 install -d -m 2750 -o "$deployment_user" -g "$web_group" \
