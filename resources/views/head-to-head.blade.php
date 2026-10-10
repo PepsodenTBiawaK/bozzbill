@@ -221,8 +221,6 @@
                     @forelse ($h2h['matches'] as $match)
                         @php
                             $isUserWinner = $match->winner_id === $selectedPlayer1->id;
-                            $userScore = $match->player1_id === $selectedPlayer1->id ? $match->player1_score : $match->player2_score;
-                            $oppScore = $match->player1_id === $selectedPlayer1->id ? $match->player2_score : $match->player1_score;
                             $winnerName = $match->winner?->name ?? 'Pemenang';
                         @endphp
 
@@ -239,7 +237,7 @@
                                     </span>
                                     <span class="text-[#888e9b] text-xs">&bull;</span>
                                     <span class="text-xs text-[#dea538] font-semibold">
-                                        {{ $match->stage ?? 'Babak Penyisihan' }}
+                                        {{ $match->stage ?? 'Babak tidak tercatat' }}
                                     </span>
                                 </div>
                             </div>
@@ -255,16 +253,8 @@
                                     <span>{{ $winnerName }} menang</span>
                                 </div>
 
-                                <!-- Big Final Score (e.g. 4 : 3) -->
-                                <div class="flex items-center gap-1.5 text-xl sm:text-2xl font-black tracking-tight">
-                                    <span class="{{ $isUserWinner ? 'text-white' : 'text-[#888e9b]' }}">
-                                        {{ $userScore }}
-                                    </span>
-                                    <span class="text-[#888e9b]">:</span>
-                                    <span class="{{ ! $isUserWinner ? 'text-[#dea538]' : 'text-[#888e9b]' }}">
-                                        {{ $oppScore }}
-                                    </span>
-                                </div>
+                                <!-- Final Score -->
+                                <div class="text-xl sm:text-2xl font-black"><x-match-score :match="$match" :player-id="$selectedPlayer1->id" separator=":" /></div>
 
                             </div>
 
@@ -277,7 +267,7 @@
                             </svg>
                             <p class="text-sm font-semibold text-white">Belum Ada Riwayat Pertandingan</p>
                             <p class="text-xs text-[#888e9b] mt-1">
-                                {{ $selectedPlayer1->name }} dan {{ $selectedOpponent->name }} belum pernah bertemu dalam pertandingan Fun Game resmi.
+                                {{ $selectedPlayer1->name }} dan {{ $selectedOpponent->name }} belum memiliki pertemuan yang tercatat di aplikasi.
                             </p>
                         </div>
                     @endforelse

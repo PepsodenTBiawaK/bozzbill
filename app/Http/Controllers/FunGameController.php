@@ -32,8 +32,8 @@ class FunGameController extends Controller
             ->latest('id')
             ->first();
 
-        $completedEvents = FunGame::where('status', FunGameStatus::Completed)
-            ->with(['champion', 'runnerUp', 'thirdPlace'])
+        $completedEvents = FunGame::whereIn('status', [FunGameStatus::Completed, FunGameStatus::Cancelled])
+            ->with(['champion', 'runnerUp', 'thirdPlace', 'podiumPlayers'])
             ->withCount('matches')
             ->orderByDesc('event_date')
             ->paginate(10);
@@ -53,6 +53,7 @@ class FunGameController extends Controller
             'champion',
             'runnerUp',
             'thirdPlace',
+            'podiumPlayers',
             'matches' => function ($q): void {
                 $q->with(['player1', 'player2', 'winner'])->latest();
             },
@@ -194,7 +195,7 @@ class FunGameController extends Controller
         $match = DB::transaction(function () use ($funGame, $p1, $p2, $validated): MatchLog {
             $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
 
-            if ($event->isCompleted()) {
+            if (! $event->isOpen()) {
                 throw ValidationException::withMessages([
                     'fun_game' => 'Event sudah ditutup. Hasil pertandingan tidak dapat ditambahkan.',
                 ]);
@@ -277,7 +278,7 @@ class FunGameController extends Controller
         DB::transaction(function () use ($funGame, $validated): void {
             $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
 
-            if ($event->isCompleted()) {
+            if (! $event->isOpen()) {
                 throw ValidationException::withMessages([
                     'fun_game' => 'Event sudah ditutup. Hasil juara tidak dapat diubah melalui penutupan event.',
                 ]);

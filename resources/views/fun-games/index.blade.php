@@ -144,7 +144,7 @@
                             <div class="flex items-center justify-between text-xs text-[#888e9b] mb-1.5">
                                 <span class="font-medium text-[#dea538]">{{ $event->event_date->format('d M Y') }}</span>
                                 <span class="px-2 py-0.5 rounded-full bg-[#202227] text-[11px] font-semibold text-[#888e9b]">
-                                    {{ $event->matches_count }} Match
+                                    {{ $event->matches_count }} Match Tercatat
                                 </span>
                             </div>
 
@@ -159,43 +159,48 @@
                             @endif
                         </div>
 
+                        @if ($event->match_records_complete === false && $event->isCompleted())
+                            <p class="text-[11px] text-[#959595]">{{ $event->format === 'double' ? 'Double ? ' : '' }}Rekap histori belum lengkap</p>
+                        @endif
+                        @if ($event->isCompleted())
                         <!-- Podium Champions -->
                         <div class="p-3 rounded-xl bg-[#202227] border border-[#2e313a] space-y-1.5 text-xs">
                             <!-- Juara 1 -->
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
                                     <span class="w-5 h-5 rounded-full bg-[#dea538]/20 border border-[#dea538]/40 text-[#dea538] text-[10px] font-black flex items-center justify-center">1</span>
-                                    <span class="font-semibold text-white truncate">{{ $event->champion?->name ?? 'Belum ditentukan' }}</span>
+                                    <span class="font-semibold text-white truncate">{{ $event->podiumName(1) }}</span>
                                 </div>
                                 <span class="text-[10px] uppercase tracking-wider text-[#dea538] font-bold">Juara 1</span>
                             </div>
 
                             <!-- Juara 2 -->
-                            @if ($event->runnerUp)
+                            @if ($event->podiumName(2) !== '-')
                                 <div class="flex items-center justify-between text-[#888e9b]">
                                     <div class="flex items-center gap-2">
                                         <span class="w-5 h-5 rounded-full bg-slate-500/20 text-slate-300 text-[10px] font-black flex items-center justify-center">2</span>
-                                        <span class="truncate">{{ $event->runnerUp->name }}</span>
+                                        <span class="truncate">{{ $event->podiumName(2) }}</span>
                                     </div>
                                     <span class="text-[10px]">Runner-Up</span>
                                 </div>
                             @endif
 
                             <!-- Juara 3 -->
-                            @if ($event->thirdPlace)
+                            @if ($event->podiumName(3) !== '-')
                                 <div class="flex items-center justify-between text-[#888e9b]">
                                     <div class="flex items-center gap-2">
                                         <span class="w-5 h-5 rounded-full bg-amber-800/20 text-amber-500 text-[10px] font-black flex items-center justify-center">3</span>
-                                        <span class="truncate">{{ $event->thirdPlace->name }}</span>
+                                        <span class="truncate">{{ $event->podiumName(3) }}</span>
                                     </div>
                                     <span class="text-[10px]">3rd Place</span>
                                 </div>
                             @endif
                         </div>
 
+                        @endif
                         <!-- Bottom Link -->
                         <div class="pt-2 border-t border-[#262830] flex items-center justify-between">
-                            <span class="text-xs text-[#888e9b]">Status: Selesai</span>
+                            <span class="text-xs text-[#888e9b]">Status: {{ $event->status->label() }}</span>
                             <a 
                                 href="{{ route('fun-games.show', $event) }}" 
                                 class="text-xs text-[#dea538] hover:underline font-bold flex items-center gap-1"

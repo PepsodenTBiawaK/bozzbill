@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\EvaluationRecommendation;
 use App\Enums\FunGameStatus;
 use App\Enums\Handicap;
-use App\Enums\UserRole;
 use App\Models\FunGame;
 use App\Models\MatchLog;
 use App\Models\PlayerDrill;
@@ -22,7 +21,7 @@ class DashboardController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $members = User::where('role', UserRole::Member)->get(['id', 'handicap', 'is_active']);
+        $members = User::query()->get(['id', 'handicap', 'is_active']);
         $activeMembers = $members->where('is_active', true);
 
         $activeEvent = FunGame::where('status', FunGameStatus::Open)
@@ -32,6 +31,7 @@ class DashboardController extends Controller
             ->first();
 
         $recentEventIds = FunGame::where('status', FunGameStatus::Completed)
+            ->where('format', 'single')
             ->latest('event_date')
             ->latest('id')
             ->take(4)

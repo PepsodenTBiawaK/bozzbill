@@ -290,7 +290,7 @@
 
                         <div class="text-right shrink-0">
                             <span class="text-sm font-black text-white bg-[#202227] px-2.5 py-1 rounded-lg border border-[#333741]">
-                                {{ $m->player1_score }} - {{ $m->player2_score }}
+                                <x-match-score :match="$m" />
                             </span>
                         </div>
                     </div>

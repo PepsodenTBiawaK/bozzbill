@@ -20,7 +20,7 @@ test('the first admin is active and can log in after entering a hidden password'
     $this->assertDatabaseHas('users', [
         'name' => 'Pengurus Bozz',
         'phone' => '081234567890',
-        'role' => UserRole::Admin->value,
+        'role' => UserRole::Superadmin->value,
         'handicap' => Handicap::ThreeN->value,
         'is_active' => true,
         'email' => null,
@@ -44,7 +44,7 @@ test('name and phone options still require a hidden password', function () {
         ->expectsQuestion('Ulangi password admin', 'admin-secret-123')
         ->assertSuccessful();
 
-    $this->assertDatabaseHas('users', ['phone' => '081234567890', 'role' => UserRole::Admin->value]);
+    $this->assertDatabaseHas('users', ['phone' => '081234567890', 'role' => UserRole::Superadmin->value]);
 });
 
 test('admin initialization refuses noninteractive execution', function () {

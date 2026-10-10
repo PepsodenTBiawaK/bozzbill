@@ -154,7 +154,7 @@ test('a pair without any meetings shows a useful empty history', function () {
 
     $response->assertOk();
     $response->assertSee('Belum Ada Riwayat Pertandingan');
-    $response->assertSee('Pedong dan Nina belum pernah bertemu');
+    $response->assertSee('Pedong dan Nina belum memiliki pertemuan yang tercatat');
     $response->assertViewHas('h2h', fn (array $stats): bool => $stats['total_matches'] === 0);
 });
 

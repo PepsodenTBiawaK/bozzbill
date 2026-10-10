@@ -48,6 +48,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/members', [RosterController::class, 'storeMember'])->name('members.store');
     Route::get('/roster/{user}', [RosterController::class, 'show'])->name('roster.show');
     Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->name('roster.reset-password');
+    Route::put('/roster/{user}/phone', [RosterController::class, 'updatePhone'])->name('roster.phone');
+    Route::put('/roster/{user}/role', [RosterController::class, 'updateRole'])->name('roster.role');
 
     // Modul Fun Game & Match Logger
     Route::get('/fun-games', [FunGameController::class, 'index'])->name('fun-games.index');

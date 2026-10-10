@@ -27,14 +27,14 @@ test('the admin dashboard summarizes the community instead of the admin account'
     $response->assertOk()
         ->assertSee('Dashboard Pengurus')
         ->assertViewHas('stats', [
-            'active_members' => 6,
+            'active_members' => 7,
             'inactive_members' => 1,
             'total_matches' => 25,
             'completed_events' => 4,
             'drills_this_month' => 4,
         ])
-        ->assertViewHas('recommendationCounts', ['promote' => 1, 'demote' => 0, 'watch' => 2, 'stay' => 4])
-        ->assertViewHas('handicapDistribution', ['3SB' => 1, '3B' => 1, '3N' => 3, '3A' => 2, '3+' => 0])
+        ->assertViewHas('recommendationCounts', ['promote' => 1, 'demote' => 0, 'watch' => 2, 'stay' => 5])
+        ->assertViewHas('handicapDistribution', ['3SB' => 1, '3B' => 1, '3N' => 3, '3A' => 2, '3+' => 1])
         ->assertViewHas('activeEvent', fn ($event): bool => $event->title === 'Fun Game Bozz #13 - Special Edition' && $event->matches_count === 0)
         ->assertViewHas('recentMatches', fn ($matches): bool => $matches->count() === 5 && $matches->every(fn ($match): bool => $match->recorder->is($admin)))
         ->assertSee(route('fun-games.quick-logger'), false)
@@ -48,7 +48,7 @@ test('the community dashboard handles an empty community', function () {
 
     $response->assertOk()
         ->assertViewHas('stats', [
-            'active_members' => 0,
+            'active_members' => 1,
             'inactive_members' => 0,
             'total_matches' => 0,
             'completed_events' => 0,
@@ -56,7 +56,7 @@ test('the community dashboard handles an empty community', function () {
         ])
         ->assertViewHas('activeEvent', null)
         ->assertViewHas('recentMatches', fn ($matches): bool => $matches->isEmpty())
-        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 0, 'stay' => 0]);
+        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 1, 'stay' => 0]);
 });
 
 test('dashboard recommendations continue to include players with no recent matches', function () {
@@ -66,5 +66,5 @@ test('dashboard recommendations continue to include players with no recent match
 
     $this->actingAs($admin)->get(route('dashboard'))
         ->assertOk()
-        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 2, 'stay' => 0]);
+        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 3, 'stay' => 0]);
 });

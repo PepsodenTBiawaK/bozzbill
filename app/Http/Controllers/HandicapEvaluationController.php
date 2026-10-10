@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\EvaluationRecommendation;
 use App\Enums\Handicap;
-use App\Enums\UserRole;
 use App\Models\HcHistory;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +25,7 @@ class HandicapEvaluationController extends Controller
 
         $filter = $request->query('filter', 'all');
 
-        $players = User::where('role', UserRole::Member)
+        $players = User::query()
             ->orderBy('name')
             ->get();
 

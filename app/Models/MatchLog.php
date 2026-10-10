@@ -64,19 +64,39 @@ class MatchLog extends Model
         return $this->winner_id === $this->player1_id ? $this->player2_id : $this->player1_id;
     }
 
-    public function winnerScore(): int
+    public function winnerScore(): ?int
     {
         return $this->winner_id === $this->player1_id ? $this->player1_score : $this->player2_score;
     }
 
-    public function loserScore(): int
+    public function loserScore(): ?int
     {
         return $this->winner_id === $this->player1_id ? $this->player2_score : $this->player1_score;
     }
 
     public function scoreSummary(): string
     {
+        if (! $this->hasRecordedScore()) {
+            return 'Skor Tidak Tercatat';
+        }
+
         return "{$this->winnerScore()} - {$this->loserScore()}";
+    }
+
+    public function hasRecordedScore(): bool
+    {
+        return $this->player1_score !== null && $this->player2_score !== null;
+    }
+
+    public function scoreFor(?int $playerId = null, string $separator = '-'): string
+    {
+        if (! $this->hasRecordedScore()) {
+            return 'Skor Tidak Tercatat';
+        }
+
+        return $playerId === $this->player2_id
+            ? "{$this->player2_score} {$separator} {$this->player1_score}"
+            : "{$this->player1_score} {$separator} {$this->player2_score}";
     }
 
     /**

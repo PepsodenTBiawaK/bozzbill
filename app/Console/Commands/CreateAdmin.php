@@ -28,7 +28,7 @@ class CreateAdmin extends Command
             return self::FAILURE;
         }
 
-        if (User::where('role', UserRole::Admin)->exists()) {
+        if (User::whereIn('role', [UserRole::Admin, UserRole::Superadmin])->exists()) {
             $this->error('Akun pengurus sudah ada. Perintah ini hanya untuk pengurus pertama.');
 
             return self::FAILURE;
@@ -87,7 +87,7 @@ class CreateAdmin extends Command
             'phone' => $phone,
             'password' => Hash::make($passwordValidator->validated()['password']),
             'handicap' => Handicap::ThreeN,
-            'role' => UserRole::Admin,
+            'role' => UserRole::Superadmin,
             'is_active' => true,
         ]);
 

@@ -122,7 +122,7 @@ test('admins can view an inactive member profile without exposing contact detail
         ->assertDontSee($member->email);
 });
 
-test('roster member profiles return 404 for an admin target', function (UserRole $viewerRole) {
+test('roster profiles include administrators as community players', function (UserRole $viewerRole) {
     $viewer = User::factory()->create([
         'phone' => '081111111111',
         'role' => $viewerRole,
@@ -136,7 +136,7 @@ test('roster member profiles return 404 for an admin target', function (UserRole
 
     $response = $this->actingAs($viewer)->get(route('roster.show', $admin));
 
-    $response->assertNotFound();
+    $response->assertOk();
 })->with([
     'member viewer' => [UserRole::Member],
     'admin viewer' => [UserRole::Admin],
@@ -266,7 +266,7 @@ test('admins cannot reset an admin password through the roster', function () {
         'password_confirmation' => 'baru12',
     ]);
 
-    $response->assertNotFound();
+    $response->assertForbidden();
     expect($admin->fresh()->getAttributes())->toBe($originalAttributes);
 });
 

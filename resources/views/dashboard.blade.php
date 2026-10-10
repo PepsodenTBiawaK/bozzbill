@@ -100,7 +100,7 @@
                                     @endif
                                 </p>
                             </div>
-                            <span class="text-base font-bold text-white shrink-0">{{ $match->player1_score }} - {{ $match->player2_score }}</span>
+                            <span class="text-base font-bold text-white shrink-0"><x-match-score :match="$match" /></span>
                         </div>
                     @empty
                         <p class="text-sm text-[#959595]">Belum ada pertandingan yang dicatat.</p>

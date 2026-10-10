@@ -17,7 +17,7 @@
             </div>
 
             <!-- Action Buttons for Admin -->
-            @if (auth()->user()?->isAdmin() && ! $funGame->isCompleted())
+            @if (auth()->user()?->isAdmin() && $funGame->isOpen())
                 <div class="flex flex-wrap items-center gap-2.5">
                     <a 
                         href="{{ route('fun-games.quick-logger') }}" 
@@ -60,6 +60,14 @@
             </div>
         @endif
 
+        @if ($funGame->match_records_complete === false && $funGame->isCompleted())
+            <div class="rounded-2xl border border-[#dea538]/20 bg-[#dea538]/5 p-4 text-xs text-[#d4d4d4]">
+                Rekap histori belum lengkap. Statistik dihitung dari match yang tercatat; skor yang tidak tersedia ditandai Skor Tidak Tercatat.
+            </div>
+        @endif
+        @if ($funGame->notes)
+            <p class="text-xs text-[#959595] leading-relaxed">{{ $funGame->notes }}</p>
+        @endif
         <!-- ================= EVENT STATUS BANNER ================= -->
         @if ($funGame->isCompleted())
             <!-- Completed Event Podium Banner -->
@@ -82,27 +90,29 @@
                     <div class="p-5 rounded-2xl bg-gradient-to-br from-[#bc852c]/20 to-[#bc852c]/5 border-2 border-[#dea538] text-center relative overflow-hidden">
                         <span class="w-8 h-8 rounded-full bg-[#dea538] text-[#141518] text-sm font-black mx-auto flex items-center justify-center mb-2 shadow">1</span>
                         <p class="text-xs uppercase tracking-widest text-[#dea538] font-bold">Juara 1 (Champion)</p>
-                        <h4 class="text-lg font-black text-white mt-1">{{ $funGame->champion?->name ?? '-' }}</h4>
-                        <p class="text-xs text-[#d4d4d4] mt-0.5">HC {{ $funGame->champion?->handicap?->value ?? '-' }}</p>
+                        <h4 class="text-lg font-black text-white mt-1">{{ $funGame->podiumName(1) }}</h4>
+                        <p class="text-xs text-[#d4d4d4] mt-0.5">{{ $funGame->format === 'double' ? 'Double' : 'HC '.($funGame->champion?->handicap?->value ?? '-') }}</p>
                     </div>
 
                     <!-- Juara 2 -->
                     <div class="p-5 rounded-2xl bg-[#16171a] border border-[#383d4a] text-center">
                         <span class="w-8 h-8 rounded-full bg-slate-400/20 text-slate-300 text-sm font-black mx-auto flex items-center justify-center mb-2">2</span>
                         <p class="text-xs uppercase tracking-widest text-[#9ca3af] font-semibold">Juara 2 (Runner-Up)</p>
-                        <h4 class="text-lg font-bold text-white mt-1">{{ $funGame->runnerUp?->name ?? '-' }}</h4>
-                        <p class="text-xs text-[#888e9b] mt-0.5">HC {{ $funGame->runnerUp?->handicap?->value ?? '-' }}</p>
+                        <h4 class="text-lg font-bold text-white mt-1">{{ $funGame->podiumName(2) }}</h4>
+                        <p class="text-xs text-[#888e9b] mt-0.5">{{ $funGame->format === 'double' ? 'Double' : 'HC '.($funGame->runnerUp?->handicap?->value ?? '-') }}</p>
                     </div>
 
                     <!-- Juara 3 -->
                     <div class="p-5 rounded-2xl bg-[#16171a] border border-[#383d4a] text-center">
                         <span class="w-8 h-8 rounded-full bg-amber-900/20 text-amber-500 text-sm font-black mx-auto flex items-center justify-center mb-2">3</span>
                         <p class="text-xs uppercase tracking-widest text-amber-500 font-semibold">Juara 3 (3rd Place)</p>
-                        <h4 class="text-lg font-bold text-white mt-1">{{ $funGame->thirdPlace?->name ?? '-' }}</h4>
-                        <p class="text-xs text-[#888e9b] mt-0.5">HC {{ $funGame->thirdPlace?->handicap?->value ?? '-' }}</p>
+                        <h4 class="text-lg font-bold text-white mt-1">{{ $funGame->podiumName(3) }}</h4>
+                        <p class="text-xs text-[#888e9b] mt-0.5">{{ $funGame->format === 'double' ? 'Double' : 'HC '.($funGame->thirdPlace?->handicap?->value ?? '-') }}</p>
                     </div>
                 </div>
             </div>
+        @elseif (! $funGame->isOpen())
+            <div class="rounded-2xl border border-[#333741] bg-[#202227] p-5 text-sm text-[#959595]">Event libur. Tidak ada pertandingan atau podium.</div>
         @else
             <!-- Live Active Event Banner -->
             <div class="p-5 sm:p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-4">
@@ -168,7 +178,7 @@
                         <!-- Score Display -->
                         <div class="flex items-center justify-end gap-3 shrink-0">
                             <div class="px-3.5 py-1.5 rounded-xl bg-[#202227] border border-[#333741] text-base font-black text-white">
-                                {{ $match->player1_score }} - {{ $match->player2_score }}
+                                <x-match-score :match="$match" />
                             </div>
                         </div>
 
@@ -182,7 +192,7 @@
         </div>
 
         <!-- ================= CLOSE EVENT MODAL (ADMIN) ================= -->
-        @if (auth()->user()?->isAdmin() && ! $funGame->isCompleted())
+        @if (auth()->user()?->isAdmin() && $funGame->isOpen())
             <div 
                 x-show="showCloseModal" 
                 x-transition.opacity 

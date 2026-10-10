@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -27,7 +26,7 @@ class RosterController extends Controller
         $sort = $request->query('sort', 'win_rate');
         $search = $request->query('search', '');
 
-        $membersQuery = User::where('role', UserRole::Member);
+        $membersQuery = User::query();
 
         if ($search) {
             $membersQuery->where('name', 'like', "%{$search}%");
@@ -103,8 +102,6 @@ class RosterController extends Controller
      */
     public function show(User $user): View
     {
-        abort_unless($user->isMember(), 404);
-
         $totalMatches = $user->totalMatchesCount();
         $wins = $user->totalWinsCount();
 
@@ -138,7 +135,8 @@ class RosterController extends Controller
             abort(403, 'Akses terbatas untuk Pengurus BozzBill.');
         }
 
-        abort_unless($user->isMember(), 404);
+        abort_unless(Auth::user()->canManageAccount($user), 403);
+        abort_if(Auth::id() === $user->id, 403, 'Gunakan pengaturan password di profil Anda sendiri.');
 
         if (! $user->is_active) {
             throw ValidationException::withMessages([
@@ -156,17 +154,12 @@ class RosterController extends Controller
         ]);
 
         DB::transaction(function () use ($user, $validated): void {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless(Auth::user()->fresh()->canManageAccount($user), 403);
             $user->forceFill([
                 'password' => Hash::make($validated['password']),
-                'remember_token' => Str::random(60),
             ])->save();
-
-            if (config('session.driver') === 'database') {
-                DB::connection(config('session.connection'))
-                    ->table(config('session.table', 'sessions'))
-                    ->where('user_id', $user->id)
-                    ->delete();
-            }
+            $user->revokeLoginSessions();
         });
 
         return redirect()
@@ -183,9 +176,13 @@ class RosterController extends Controller
             abort(403, 'Akses terbatas untuk Pengurus BozzBill.');
         }
 
+        if (is_string($request->input('phone'))) {
+            $request->merge(['phone' => User::normalizePhone($request->input('phone'))]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'min:8', 'max:20', 'unique:users,phone'],
+            'phone' => ['required', 'string', 'regex:/^08[0-9]{8,13}$/', 'unique:users,phone'],
             'handicap' => ['required', Rule::enum(Handicap::class)],
         ], [
             'name.required' => 'Nama lengkap pemain wajib diisi.',
@@ -206,5 +203,80 @@ class RosterController extends Controller
         return redirect()
             ->route('roster', ['tab' => 'roster'])
             ->with('status_success', "Calon member '{$newMember->name}' ({$newMember->phone}) berhasil didaftarkan dengan HC {$newMember->handicap->value}! Member dapat langsung melakukan Aktivasi Akun.");
+    }
+
+    public function updatePhone(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->canManageAccount($user), 403);
+
+        if (is_string($request->input('phone'))) {
+            $request->merge(['phone' => User::normalizePhone($request->input('phone'))]);
+        }
+
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'regex:/^08[0-9]{8,13}$/', Rule::unique('users', 'phone')->ignore($user)],
+        ], [
+            'phone.required' => 'Nomor WhatsApp wajib diisi.',
+            'phone.regex' => 'Gunakan nomor WhatsApp Indonesia yang valid, misalnya 081234567890.',
+            'phone.unique' => 'Nomor WhatsApp ini sudah digunakan akun lain.',
+        ]);
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $target = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($request->user()->fresh()->canManageAccount($target), 403);
+
+            if ($target->phone !== $validated['phone']) {
+                $this->recordAccountChange($target, 'phone', $target->phone, $validated['phone'], $request->user()->id);
+                $target->update(['phone' => $validated['phone']]);
+                $target->revokeLoginSessions();
+            }
+        });
+
+        if ($request->user()->is($user) && $user->phone !== $validated['phone']) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->with('status_success', 'Nomor WhatsApp diperbarui. Silakan masuk menggunakan nomor baru.');
+        }
+
+        return redirect()->route('roster.show', $user)
+            ->with('status_success', 'Nomor WhatsApp diperbarui. Gunakan nomor baru untuk masuk; histori pemain tetap tersimpan.');
+    }
+
+    public function updateRole(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->isSuperadmin() && ! $user->isSuperadmin(), 403);
+
+        $validated = $request->validate([
+            'role' => ['required', Rule::in([UserRole::Admin->value, UserRole::Member->value])],
+        ]);
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $target = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($request->user()->fresh()->isSuperadmin() && ! $target->isSuperadmin(), 403);
+
+            if ($target->role->value !== $validated['role']) {
+                $this->recordAccountChange($target, 'role', $target->role->value, $validated['role'], $request->user()->id);
+                $target->update(['role' => $validated['role']]);
+                $target->revokeLoginSessions();
+            }
+        });
+
+        return redirect()->route('roster.show', $user)
+            ->with('status_success', 'Jabatan akun berhasil diperbarui. Pemain perlu masuk kembali; histori tetap tersimpan.');
+    }
+
+    private function recordAccountChange(User $target, string $field, ?string $oldValue, string $newValue, int $changedBy): void
+    {
+        DB::table('account_changes')->insert([
+            'user_id' => $target->id,
+            'changed_by' => $changedBy,
+            'field' => $field,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -34,6 +34,9 @@
                     <h2 class="text-xl sm:text-2xl font-bold text-white break-words">{{ $member->name }}</h2>
                     <p class="text-sm text-[#959595] mt-1">{{ $member->maskedPhone() }}</p>
                     <div class="flex flex-wrap items-center gap-2 mt-3">
+                        @if ($member->isAdmin())
+                            <span class="px-2.5 py-1 rounded-lg bg-[#252830] border border-[#383d4a] text-xs font-semibold text-[#d4d4d4]">{{ $member->role->label() }}</span>
+                        @endif
                         <span class="px-2.5 py-1 rounded-lg bg-[#dea538]/10 border border-[#dea538]/30 text-xs font-bold text-[#dea538]">
                             HC {{ $member->handicap->value }}
                         </span>
@@ -42,7 +45,7 @@
                         </span>
                     </div>
                     @if ($member->created_at)
-                        <p class="text-xs text-[#888e9b] mt-3">Bergabung {{ $member->created_at->format('d M Y') }}</p>
+                        <p class="text-xs text-[#888e9b] mt-3">Profil dibuat {{ $member->created_at->format('d M Y') }}</p>
                     @endif
                 </div>
 
@@ -59,7 +62,7 @@
                     <dd class="text-2xl font-bold text-[#dea538] mt-1">{{ $stats['win_rate'] }}%</dd>
                 </div>
                 <div class="rounded-2xl bg-[#16171a] border border-[#2e313a] p-4">
-                    <dt class="text-xs text-[#959595]">Total Match</dt>
+                    <dt class="text-xs text-[#959595]">Match Tercatat</dt>
                     <dd class="text-2xl font-bold text-white mt-1">{{ $stats['total_matches'] }}</dd>
                 </div>
                 <div class="rounded-2xl bg-[#16171a] border border-[#2e313a] p-4">
@@ -120,8 +123,6 @@
                             $isWinner = $match->winner_id === $member->id;
                             $isPlayerOne = $match->player1_id === $member->id;
                             $opponent = $isPlayerOne ? $match->player2 : $match->player1;
-                            $memberScore = $isPlayerOne ? $match->player1_score : $match->player2_score;
-                            $opponentScore = $isPlayerOne ? $match->player2_score : $match->player1_score;
                         @endphp
                         <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#16171a] border border-[#2e313a]">
                             <div class="min-w-0">
@@ -129,7 +130,7 @@
                                 <p class="text-xs text-[#888e9b] mt-0.5 truncate">{{ $match->funGame->title }} &bull; {{ $match->stage ?? 'Fun Game Match' }}</p>
                             </div>
                             <div class="text-right shrink-0">
-                                <p class="text-base font-bold {{ $isWinner ? 'text-emerald-400' : 'text-rose-400' }}">{{ $memberScore }} - {{ $opponentScore }}</p>
+                                <p class="text-base font-bold {{ $isWinner ? 'text-emerald-400' : 'text-rose-400' }}"><x-match-score :match="$match" :player-id="$member->id" /></p>
                                 <p class="text-xs text-[#888e9b]">{{ $isWinner ? 'Menang' : 'Kalah' }}</p>
                             </div>
                         </div>
@@ -138,7 +139,7 @@
             </section>
         @endif
 
-        @if (auth()->user()?->isAdmin())
+        @if (auth()->user()?->canManageAccount($member) && $member->id !== auth()->id())
             <section x-data="{ resetOpen: {{ $errors->any() ? 'true' : 'false' }} }" class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
@@ -174,6 +175,36 @@
                         </button>
                     </form>
                 @endif
+            </section>
+        @endif
+        @if (auth()->user()?->canManageAccount($member))
+            <section class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-white">Nomor WhatsApp</h2>
+                <p class="text-xs text-[#959595] mt-1">Nomor ini digunakan untuk login. Mengubahnya tidak menghapus histori pemain.</p>
+                <form method="POST" action="{{ route('roster.phone', $member) }}" class="mt-4 flex flex-col sm:flex-row gap-3">
+                    @csrf
+                    @method('PUT')
+                    <label for="member-phone" class="sr-only">Nomor WhatsApp Baru</label>
+                    <input id="member-phone" name="phone" type="tel" inputmode="tel" required value="{{ old('phone') }}" placeholder="Nomor WhatsApp baru" autocomplete="off" class="flex-1 min-w-0 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-xs font-bold cursor-pointer">Ubah Nomor WhatsApp</button>
+                </form>
+            </section>
+        @endif
+
+        @if (auth()->user()?->isSuperadmin() && ! $member->isSuperadmin())
+            <section class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-white">Jabatan Akun</h2>
+                <p class="text-xs text-[#959595] mt-1">Hanya Superadmin dapat mengatur jabatan. HC dan histori pemain tetap tersimpan.</p>
+                <form method="POST" action="{{ route('roster.role', $member) }}" class="mt-4 flex flex-col sm:flex-row gap-3">
+                    @csrf
+                    @method('PUT')
+                    <label for="member-role" class="sr-only">Jabatan</label>
+                    <select id="member-role" name="role" class="flex-1 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none">
+                        <option value="member" @selected($member->isMember())>Member</option>
+                        <option value="admin" @selected($member->isAdmin())>Pengurus / Admin</option>
+                    </select>
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-xs font-bold cursor-pointer">Simpan Jabatan</button>
+                </form>
             </section>
         @endif
     </div>

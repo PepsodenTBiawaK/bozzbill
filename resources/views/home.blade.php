@@ -285,8 +285,6 @@
                         @php
                             $isWinner = $match->winner_id === $user->id;
                             $opponent = $match->player1_id === $user->id ? $match->player2 : $match->player1;
-                            $userScore = $match->player1_id === $user->id ? $match->player1_score : $match->player2_score;
-                            $oppScore = $match->player1_id === $user->id ? $match->player2_score : $match->player1_score;
                         @endphp
 
                         <div class="p-3.5 sm:p-4 rounded-2xl bg-[#191a1e] border border-[#2f323a] flex items-center justify-between gap-3">
@@ -307,7 +305,7 @@
 
                             <div class="text-right shrink-0">
                                 <span class="text-base sm:text-lg font-black {{ $isWinner ? 'text-emerald-400' : 'text-rose-400' }}">
-                                    {{ $userScore }} - {{ $oppScore }}
+                                    <x-match-score :match="$match" :player-id="$user->id" />
                                 </span>
                                 <p class="text-[10px] text-[#888e9b] uppercase tracking-wider font-semibold">
                                     {{ $isWinner ? 'Menang' : 'Kalah' }}

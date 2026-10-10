@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -76,7 +78,36 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::Admin;
+        return $this->role?->isAdmin() ?? false;
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === UserRole::Superadmin;
+    }
+
+    public function canManageAccount(User $target): bool
+    {
+        return $this->isSuperadmin() || ($this->isAdmin() && $target->isMember());
+    }
+
+    public function revokeLoginSessions(): void
+    {
+        $this->forceFill(['remember_token' => Str::random(60)])->save();
+
+        if (config('session.driver') === 'database') {
+            DB::connection(config('session.connection'))
+                ->table(config('session.table', 'sessions'))
+                ->where('user_id', $this->id)
+                ->delete();
+        }
+    }
+
+    public static function normalizePhone(string $phone): string
+    {
+        $cleaned = preg_replace('/[^\d]/', '', $phone);
+
+        return str_starts_with($cleaned, '62') ? '0'.substr($cleaned, 2) : $cleaned;
     }
 
     public function isMember(): bool
@@ -90,6 +121,9 @@ class User extends Authenticatable
     public function maskedPhone(): string
     {
         $phone = (string) $this->phone;
+        if ($phone === '') {
+            return 'Nomor WhatsApp belum tersedia';
+        }
         $len = strlen($phone);
         if ($len <= 6) {
             return $phone;
@@ -216,13 +250,13 @@ class User extends Authenticatable
      */
     public function funGamesParticipatedCount(): int
     {
-        return MatchLog::query()
-            ->where(function ($query): void {
-                $query->where('player1_id', $this->id)
-                    ->orWhere('player2_id', $this->id);
-            })
-            ->distinct('fun_game_id')
-            ->count('fun_game_id');
+        $matchEventIds = $this->allMatches()->distinct()->pluck('fun_game_id');
+        $podiumEventIds = FunGame::query()->where(function (Builder $query): void {
+            $query->where('champion_id', $this->id)->orWhere('runner_up_id', $this->id)->orWhere('third_place_id', $this->id)
+                ->orWhereHas('podiumPlayers', fn (Builder $players) => $players->where('users.id', $this->id));
+        })->pluck('id');
+
+        return $matchEventIds->merge($podiumEventIds)->unique()->count();
     }
 
     /**
@@ -233,6 +267,7 @@ class User extends Authenticatable
     public function recentFunGamesSummary(int $limit = 4): array
     {
         $funGames = FunGame::where('status', FunGameStatus::Completed)
+            ->where('format', 'single')
             ->orderByDesc('event_date')
             ->take($limit)
             ->get();
@@ -256,6 +291,9 @@ class User extends Authenticatable
 
             $placement = null;
             $label = 'Tidak Ikut';
+            if ($fg->match_records_complete === false) {
+                $label = 'Belum tercatat';
+            }
             $badgeStyle = 'default';
 
             if ($isChampion) {
@@ -362,6 +400,7 @@ class User extends Authenticatable
     {
         if ($matches === null) {
             $funGameIds = FunGame::where('status', FunGameStatus::Completed)
+                ->where('format', 'single')
                 ->latest('event_date')
                 ->latest('id')
                 ->take(4)
