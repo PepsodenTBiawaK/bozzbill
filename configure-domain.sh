@@ -60,15 +60,28 @@ readonly O5_CHECKSUM=$(sha256sum /etc/nginx/sites-available/o5hub | awk '{print 
 configuration_changed=false
 environment_changed=false
 completed=false
+configuration_stage='persiapan Nginx'
 
 rebuild_cache() {
     runuser -u fadil -- bash -c 'umask 0007; cd /var/www/bozzbill/current; php8.4 artisan optimize --no-interaction'
+}
+
+verify_health() {
+    local address=$1
+    shift
+    local http_status
+    http_status=$(curl --fail --silent --show-error --output /dev/null \
+        --max-time 10 --retry 8 --retry-delay 1 --retry-max-time 30 \
+        --retry-all-errors --write-out '%{http_code}' "$@" "$address") \
+        || fail "Pemeriksaan $address gagal setelah menunggu reload Nginx."
+    [[ "$http_status" == 200 ]] || fail "Pemeriksaan $address menghasilkan HTTP $http_status, seharusnya 200."
 }
 
 cleanup() {
     local exit_status=$?
     trap - EXIT
     if (( exit_status != 0 )) && [[ "$completed" == false ]]; then
+        printf 'Tahap yang gagal: %s (exit %s).\n' "$configuration_stage" "$exit_status" >&2
         printf 'Mengembalikan konfigurasi sebelumnya...\n' >&2
         if [[ "$configuration_changed" == true ]]; then
             cp -a -- "$BACKUP_DIRECTORY/nginx-site" "$NGINX_SITE"
@@ -117,6 +130,7 @@ NGINX
 chmod 0644 "$NGINX_SNIPPET"
 
 if [[ ! -f "$CERTIFICATE/fullchain.pem" ]]; then
+    configuration_stage='penerbitan sertifikat HTTPS'
     cat > "$NGINX_SITE" <<'NGINX'
 server {
     listen 8080;
@@ -143,14 +157,19 @@ NGINX
         --non-interactive --agree-tos --register-unsafely-without-email
 fi
 
+configuration_stage='validasi sertifikat HTTPS'
 openssl x509 -in "$CERTIFICATE/fullchain.pem" -noout -checkhost "$DOMAIN" | grep -q 'does match' || fail 'Sertifikat tidak mencakup domain utama.'
 openssl x509 -in "$CERTIFICATE/fullchain.pem" -noout -checkhost "www.$DOMAIN" | grep -q 'does match' || fail 'Sertifikat tidak mencakup www.'
 openssl x509 -in "$CERTIFICATE/fullchain.pem" -noout -checkend 86400 > /dev/null || fail 'Sertifikat kedaluwarsa atau segera berakhir.'
 
 cat > "$NGINX_SITE" <<'NGINX'
 server {
-    listen 127.0.0.1:8080;
+    listen 8080;
+    listen [::]:8080;
     server_name localhost;
+    allow 127.0.0.1;
+    allow ::1;
+    deny all;
     include /etc/nginx/snippets/bozzbill-app.conf;
 }
 server {
@@ -189,6 +208,7 @@ NGINX
 chmod 0644 "$NGINX_SITE"
 nginx -t
 
+configuration_stage='pengaturan URL dan cache aplikasi'
 environment_changed=true
 python3 <<'PYTHON'
 from pathlib import Path
@@ -219,6 +239,7 @@ PYTHON
 rebuild_cache
 systemctl reload nginx
 
+configuration_stage='pengaturan pembaruan sertifikat'
 install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
 cat > "$RENEWAL_HOOK" <<'BASH'
 #!/usr/bin/env bash
@@ -231,9 +252,13 @@ BASH
 chmod 0750 "$RENEWAL_HOOK"
 systemctl enable --now certbot.timer
 
-curl --fail --silent --show-error --max-time 15 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/up" > /dev/null
-curl --fail --silent --show-error --max-time 15 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/login" > /dev/null
-curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8080/up > /dev/null
+configuration_stage='pemeriksaan HTTPS setelah reload Nginx'
+printf 'Menunggu HTTPS BozzBill aktif setelah reload Nginx...\n'
+verify_health "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1"
+verify_health "https://$DOMAIN/login" --resolve "$DOMAIN:443:127.0.0.1"
+configuration_stage='pemeriksaan health check auto-deploy'
+verify_health http://127.0.0.1:8080/up
+configuration_stage='pemeriksaan konfigurasi O5Hub'
 [[ $(sha256sum /etc/nginx/sites-available/o5hub | awk '{print $1}') == "$O5_CHECKSUM" ]] || fail 'Konfigurasi O5 berubah; periksa server.'
 completed=true
 printf '\nKonfigurasi domain selesai.\nAlamat: https://bozzbill.my.id\nWWW otomatis menuju domain utama.\nBackup konfigurasi: %s\n' "$BACKUP_DIRECTORY"
