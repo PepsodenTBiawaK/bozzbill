@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DrillingController;
@@ -25,6 +26,7 @@ Route::middleware('auth')->group(function (): void {
 
     // Home / Paspor Pemain
     Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/achievements', [AchievementController::class, 'index'])->name('achievements');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Profil Pemain & Riwayat HC

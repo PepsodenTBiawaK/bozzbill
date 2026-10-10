@@ -70,8 +70,8 @@
             <!-- Branding Header -->
             <div class="flex flex-col items-center text-center mb-6">
                 <div class="flex items-center gap-3 mb-2">
-                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Bozz Logo" class="h-11 w-auto drop-shadow" />
-                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-5 w-auto drop-shadow" />
+                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Bozz Logo" class="h-9 w-auto drop-shadow" />
+                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-4 w-auto drop-shadow" />
                 </div>
                 <p class="text-xs uppercase tracking-[0.2em] font-medium text-[#dea538]">Komunitas Biliar Tebet</p>
             </div>

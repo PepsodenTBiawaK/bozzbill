@@ -8,7 +8,6 @@ use App\Models\FunGame;
 use App\Models\MatchLog;
 use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -272,19 +271,7 @@ class FunGameController extends Controller
 
     private function syncGiantKillerBadge(User $player): void
     {
-        $badge = Badge::query()->where('slug', 'giant-killer')->first();
-
-        if (! $badge) {
-            return;
-        }
-
-        $hasQualifyingMatch = $player->wonMatches()->get()->contains(fn (MatchLog $match): bool => $match->isGiantKiller());
-
-        if ($hasQualifyingMatch) {
-            $player->badges()->syncWithoutDetaching([$badge->id]);
-        } else {
-            $player->badges()->detach($badge->id);
-        }
+        $player->syncAchievementBadges(['giant_kills']);
     }
 
     /**
@@ -355,6 +342,11 @@ class FunGameController extends Controller
             if ($championBadge && ! $champion->badges()->where('badge_id', $championBadge->id)->exists()) {
                 $champion->badges()->attach($championBadge->id);
             }
+            $participantIds = $event->matches()->pluck('player1_id')->merge($event->matches()->pluck('player2_id'))
+                ->merge([$validated['champion_id'], $validated['runner_up_id'] ?? null, $validated['third_place_id'] ?? null])->filter()->unique();
+            foreach (User::query()->whereIn('id', $participantIds)->orderBy('id')->lockForUpdate()->get() as $participant) {
+                $participant->syncAchievementBadges(['champions', 'streak']);
+            }
         });
 
         return redirect()
@@ -385,7 +377,10 @@ class FunGameController extends Controller
             $podiumWinnerIds = DB::table('fun_game_podium')->where('fun_game_id', $event->id)
                 ->where('position', 1)->lockForUpdate()->pluck('user_id');
             $championIds = $podiumWinnerIds->push($event->champion_id)->filter()->unique();
-            $players = User::query()->whereIn('id', $winnerIds->merge($championIds)->unique())
+            $participantIds = $event->matches()->pluck('player1_id')->merge($event->matches()->pluck('player2_id'))
+                ->merge($event->podiumPlayers()->pluck('users.id'))
+                ->merge([$event->champion_id, $event->runner_up_id, $event->third_place_id])->filter()->unique();
+            $players = User::query()->whereIn('id', $participantIds->merge($winnerIds)->merge($championIds)->unique())
                 ->orderBy('id')->lockForUpdate()->get();
             abort_unless($request->user()->fresh()->isAdmin(), 403);
 
@@ -399,6 +394,7 @@ class FunGameController extends Controller
                 if ($championIds->contains($player->id)) {
                     $this->syncChampionBadge($player);
                 }
+                $player->syncAchievementBadges(['streak']);
             }
         });
 
@@ -408,23 +404,7 @@ class FunGameController extends Controller
 
     private function syncChampionBadge(User $player): void
     {
-        $badge = Badge::query()->where('slug', 'champion')->first();
-
-        if (! $badge) {
-            return;
-        }
-
-        $hasTitle = FunGame::query()->where('status', FunGameStatus::Completed)
-            ->where(function (Builder $query) use ($player): void {
-                $query->where('champion_id', $player->id)
-                    ->orWhereHas('podiumPlayers', fn (Builder $podium): Builder => $podium->where('users.id', $player->id)->where('fun_game_podium.position', 1));
-            })->exists();
-
-        if ($hasTitle) {
-            $player->badges()->syncWithoutDetaching([$badge->id]);
-        } else {
-            $player->badges()->detach($badge->id);
-        }
+        $player->syncAchievementBadges(['champions']);
     }
 
     /**

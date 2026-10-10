@@ -18,7 +18,7 @@
             <div class="col-span-3 lg:col-span-5 min-w-0 bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4 relative overflow-hidden shadow-xl flex items-center justify-between gap-3">
                 <!-- Watermark Logo Mark in Background -->
                 <div class="absolute -right-4 -bottom-4 w-24 h-24 opacity-5 pointer-events-none">
-                    <img src="{{ asset('images/logo-mark.svg') }}" alt="" class="w-full h-full object-contain filter invert" />
+                    <img src="{{ asset('images/logo-mark.svg') }}" alt="" class="w-full h-full object-contain" />
                 </div>
 
                 <div class="flex items-center gap-3 relative z-10 min-w-0">
@@ -118,7 +118,7 @@
                         </p>
                     </div>
 
-                    <a href="#all-events" class="text-xs text-[#dea538] hover:underline font-semibold flex items-center gap-1">
+                    <a href="{{ route('fun-games.index') }}" class="text-xs text-[#dea538] hover:underline font-semibold flex items-center gap-1">
                         <span>Semua Event</span>
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -127,7 +127,7 @@
                 </div>
 
                 <!-- 4 Cards Grid / Mobile Horizontal Scroll -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
                     @forelse ($recentFunGames as $fg)
                         @php
                             // Styling variants matching Figma mock
@@ -140,11 +140,11 @@
                             $watermarkText = $fg['placement'] ?? '';
                         @endphp
 
-                        <div class="h-32 rounded-2xl p-4 relative overflow-hidden shadow-md flex flex-col justify-between {{ $cardBg }}">
+                        <div class="h-24 rounded-xl p-3 relative overflow-hidden shadow-md flex flex-col justify-between {{ $cardBg }}">
                             
                             <!-- Huge Watermark Placement Number (e.g. 1st, 2nd, 3rd) -->
                             @if ($watermarkText)
-                                <div class="absolute -left-2 -top-3 text-7xl font-black italic opacity-20 pointer-events-none select-none tracking-tighter">
+                                <div class="absolute -left-1 -top-2 text-5xl font-black italic opacity-20 pointer-events-none select-none tracking-tighter">
                                     {{ $watermarkText }}
                                 </div>
                             @endif
@@ -169,7 +169,7 @@
 
                             <!-- Bottom Content: Event Name & Outcome -->
                             <div class="relative z-10 text-center">
-                                <h4 class="text-xl font-bold tracking-tight">
+                                <h4 title="{{ $fg['title'] }}" class="text-sm sm:text-base font-bold tracking-tight truncate">
                                     {{ $fg['short_title'] }}
                                 </h4>
                                 <p class="text-xs font-medium opacity-90 mt-0.5">
@@ -202,69 +202,14 @@
                     </span>
                 </div>
 
-                <!-- Badges Grid (Sesuai Figma: Target, Zap, Trophy) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach ($allBadges as $badge)
-                        @php
-                            $isUnlocked = $badges->contains('id', $badge->id);
-                        @endphp
-
-                        <div class="rounded-2xl p-4 border transition-all duration-200 {{ $isUnlocked ? 'bg-[#191a1e] border-[#383838] shadow-md' : 'bg-[#191a1e]/40 border-[#2b2d35] opacity-40' }}">
-                            <div class="flex items-start gap-3.5">
-                                
-                                <!-- Badge Icon -->
-                                <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 {{ $isUnlocked ? 'bg-[#dea538]/10 text-[#dea538] border border-[#dea538]/30 shadow-inner' : 'bg-[#202227] text-[#666666] border border-[#333741]' }}">
-                                    @if ($badge->icon === 'target')
-                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <circle cx="12" cy="12" r="10" stroke-width="2"/>
-                                            <circle cx="12" cy="12" r="6" stroke-width="2"/>
-                                            <circle cx="12" cy="12" r="2" stroke-width="2"/>
-                                        </svg>
-                                    @elseif ($badge->icon === 'zap')
-                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
-                                    @elseif ($badge->icon === 'trophy')
-                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                                        </svg>
-                                    @elseif ($badge->icon === 'swords')
-                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    @else
-                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                                        </svg>
-                                    @endif
-                                </div>
-
-                                <!-- Badge Content -->
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <h4 class="text-sm font-bold text-white truncate">
-                                            {{ $badge->name }}
-                                        </h4>
-                                        @if ($isUnlocked)
-                                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                                Unlocked
-                                            </span>
-                                        @else
-                                            <span class="text-[10px] text-[#666666]">
-                                                Terkunci
-                                            </span>
-                                        @endif
-                                    </div>
-                                    <p class="text-xs text-[#959595] mt-1 leading-snug line-clamp-2">
-                                        {{ $badge->description }}
-                                    </p>
-                                </div>
-
-                            </div>
-                        </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @foreach ($achievements as $achievement)
+                        <x-achievement-card :achievement="$achievement" />
                     @endforeach
                 </div>
+                <a href="{{ route('achievements') }}" class="inline-flex items-center gap-1.5 min-h-11 mt-2 text-xs font-semibold text-[#dea538] hover:underline">
+                    Lihat detail lencana &rarr;
+                </a>
             </div>
 
             <!-- SECTION 3: REKAP MATCH TERBARU -->

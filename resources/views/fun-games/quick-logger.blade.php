@@ -1,11 +1,11 @@
 <x-layouts.app>
     <div 
         x-data="{
-            p1Id: '',
-            p2Id: '',
-            p1Score: 3,
-            p2Score: 0,
-            winnerId: '',
+            p1Id: @js((string) old('player1_id', '')),
+            p2Id: @js((string) old('player2_id', '')),
+            p1Score: @js((int) old('player1_score', 3)),
+            p2Score: @js((int) old('player2_score', 0)),
+            winnerId: @js((string) old('winner_id', '')),
             stage: 'Penyisihan',
             members: {{ Js::from($members) }},
 
@@ -20,6 +20,8 @@
                     this.winnerId = this.p1Id;
                 } else if (this.p2Score > this.p1Score) {
                     this.winnerId = this.p2Id;
+                } else {
+                    this.winnerId = '';
                 }
             }
         }"
@@ -70,7 +72,7 @@
         @endif
 
         <!-- ================= RAPID MATCH INPUT CARD ================= -->
-        <div class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-8 relative overflow-hidden shadow-2xl">
+        <div class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-8 relative shadow-2xl">
             <!-- Corner Gold Ribbon -->
             <div class="absolute -top-10 -right-10 w-32 h-32 overflow-hidden pointer-events-none">
                 <div class="absolute top-0 right-0 w-32 h-4 bg-[#fce2b5] transform rotate-45 translate-x-10 translate-y-2 opacity-90"></div>
@@ -110,17 +112,7 @@
 
                         <!-- Player 1 Selector -->
                         <div class="mb-4">
-                            <select 
-                                name="player1_id" 
-                                x-model="p1Id" 
-                                required 
-                                class="w-full bg-[#202227] border border-[#333741] focus:border-[#dea538] rounded-xl px-3.5 py-3 text-white text-sm outline-none cursor-pointer"
-                            >
-                                <option value="">-- Pilih Pemain 1 --</option>
-                                <template x-for="m in members" :key="m.id">
-                                    <option :value="m.id" :disabled="m.id == p2Id" x-text="m.name + ' (HC ' + m.handicap + ')'"></option>
-                                </template>
-                            </select>
+                            <x-player-picker :players="$members" name="player1_id" label="Cari Pemain 1" x-model="p1Id" :value="old('player1_id', '')" exclude="[p2Id]" required />
                         </div>
 
                         <!-- Player 1 Score Stepper -->
@@ -186,17 +178,7 @@
 
                         <!-- Player 2 Selector -->
                         <div class="mb-4">
-                            <select 
-                                name="player2_id" 
-                                x-model="p2Id" 
-                                required 
-                                class="w-full bg-[#202227] border border-[#333741] focus:border-[#dea538] rounded-xl px-3.5 py-3 text-white text-sm outline-none cursor-pointer"
-                            >
-                                <option value="">-- Pilih Pemain 2 --</option>
-                                <template x-for="m in members" :key="m.id">
-                                    <option :value="m.id" :disabled="m.id == p1Id" x-text="m.name + ' (HC ' + m.handicap + ')'"></option>
-                                </template>
-                            </select>
+                            <x-player-picker :players="$members" name="player2_id" label="Cari Pemain 2" x-model="p2Id" :value="old('player2_id', '')" exclude="[p1Id]" required />
                         </div>
 
                         <!-- Player 2 Score Stepper -->

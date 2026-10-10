@@ -91,6 +91,7 @@ class RosterController extends Controller
             'tab' => $tab,
             'sort' => $sort,
             'search' => $search,
+            'searchPlayers' => User::query()->orderBy('name')->get(['id', 'name', 'handicap']),
             'podium' => $podium,
             'restRankings' => $restRankings,
             'rosterByHandicap' => $rosterByHandicap,

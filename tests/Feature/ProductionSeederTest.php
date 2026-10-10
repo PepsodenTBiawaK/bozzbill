@@ -11,7 +11,7 @@ test('production setup seeds achievement definitions without demo accounts or ac
     $this->seed(ProductionSeeder::class);
 
     expect(Badge::orderBy('slug')->pluck('slug')->all())->toBe([
-        'champion', 'drill-master', 'electric-form', 'giant-killer', 'sharpshooter',
+        'champion', 'champion-2', 'champion-3', 'champion-5', 'drill-master', 'drill-starter', 'electric-form', 'giant-killer', 'sharpshooter',
     ]);
     foreach (['users', 'fun_games', 'match_logs', 'player_drills', 'hc_histories', 'badge_user'] as $table) {
         $this->assertDatabaseEmpty($table);
@@ -27,7 +27,7 @@ test('repeated production setup preserves earned badges and updates their defini
 
     $this->seed(ProductionSeeder::class);
 
-    $this->assertDatabaseCount('badges', 5);
+    $this->assertDatabaseCount('badges', 9);
     $this->assertDatabaseCount('users', 1);
     $this->assertDatabaseHas('badges', ['id' => $badge->id, 'name' => 'Champion', 'icon' => 'trophy']);
     $this->assertDatabaseHas('badge_user', [

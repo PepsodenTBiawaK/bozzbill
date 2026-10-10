@@ -3,7 +3,7 @@
         tab: '{{ $tab }}',
         showAddMemberModal: false,
         openHc: '3A',
-        searchQuery: '{{ $search }}'
+        searchQuery: @js($search)
     }" class="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         
         <!-- ================= PAGE HEADER ================= -->
@@ -278,18 +278,10 @@
         <div x-show="tab === 'roster'" class="space-y-4" style="display: none;">
             
             <!-- Search Bar -->
-            <form method="GET" action="{{ route('roster') }}" class="relative">
+            <form method="GET" action="{{ route('roster') }}" class="flex items-end gap-2">
                 <input type="hidden" name="tab" value="roster">
-                <svg class="w-5 h-5 text-[#888e9b] absolute left-4 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input 
-                    type="text" 
-                    name="search" 
-                    value="{{ $search }}"
-                    placeholder="Cari nama pemain BozzBill..." 
-                    class="w-full bg-[#202227] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder-[#555a66] text-sm outline-none transition shadow-lg"
-                />
+                <x-player-picker :players="$searchPlayers" name="search" label="Cari anggota" :filter="true" :query="$search" class="flex-1 min-w-0" x-on:player-selected="$el.closest('form').requestSubmit()" />
+                <button type="submit" class="min-h-11 px-4 rounded-xl bg-[#dea538] text-[#141518] text-sm font-bold cursor-pointer">Cari</button>
             </form>
 
             <p class="text-xs text-[#888e9b] px-1">

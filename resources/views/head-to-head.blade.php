@@ -83,7 +83,7 @@
                 
                 <!-- Watermark Logo Mark in Background -->
                 <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
-                    <img src="{{ asset('images/logo-mark.svg') }}" alt="" class="w-80 sm:w-96 h-auto object-contain filter invert" />
+                    <img src="{{ asset('images/logo-mark.svg') }}" alt="" class="w-80 sm:w-96 h-auto object-contain" />
                 </div>
 
                 <div class="relative z-10">

@@ -197,6 +197,77 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /** @return array{champions: int, giant_kills: int, streak: int, drill_sessions: int, accuracy: int} */
+    private function achievementMetrics(): array
+    {
+        $completedEvents = FunGame::query()->where('status', FunGameStatus::Completed)
+            ->with(['podiumPlayers:id'])->orderBy('event_date')->orderBy('id')->get();
+        $participation = $this->allMatches()->distinct()->pluck('fun_game_id')->flip();
+        $champions = 0;
+        $streak = 0;
+        $longestStreak = 0;
+        foreach ($completedEvents as $event) {
+            $podium = $event->podiumPlayers->firstWhere('id', $this->id);
+            if ($event->champion_id === $this->id || (int) $podium?->pivot->position === 1) {
+                $champions++;
+            }
+            $attended = $participation->has($event->id) || $podium !== null
+                || in_array($this->id, [$event->champion_id, $event->runner_up_id, $event->third_place_id], true);
+            $streak = $attended ? $streak + 1 : 0;
+            $longestStreak = max($longestStreak, $streak);
+        }
+
+        return [
+            'champions' => $champions,
+            'giant_kills' => $this->winsAgainstHigherHcCount(),
+            'streak' => $longestStreak,
+            'drill_sessions' => $this->playerDrills()->count(),
+            'accuracy' => (int) floor($this->playerDrills()->max('accuracy_percentage') ?? 0),
+        ];
+    }
+
+    /** @return Collection<int, array{badge: Badge, unlocked: bool, current: int, target: int, percentage: int, unit: string}> */
+    public function achievementProgress(): Collection
+    {
+        $metrics = $this->achievementMetrics();
+        $earned = $this->badges()->get()->keyBy('slug');
+        $definitions = collect(Badge::catalog())->keyBy('slug');
+
+        return Badge::query()->get()->filter(fn (Badge $badge): bool => $definitions->has($badge->slug))
+            ->map(function (Badge $badge) use ($definitions, $metrics, $earned): array {
+                $definition = $definitions->get($badge->slug);
+                $current = min($metrics[$definition['metric']], $definition['target']);
+                $unlocked = $earned->has($badge->slug);
+
+                return ['badge' => $badge, 'unlocked' => $unlocked,
+                    'current' => $unlocked ? $definition['target'] : $current, 'target' => $definition['target'],
+                    'percentage' => $unlocked ? 100 : (int) floor($current / $definition['target'] * 100),
+                    'unit' => match ($definition['metric']) {
+                        'accuracy' => '% akurasi', 'champions' => 'gelar', 'drill_sessions' => 'sesi',
+                        'streak' => 'event beruntun', default => 'kemenangan',
+                    }];
+            })->values();
+    }
+
+    /** @param array<int, string> $metrics */
+    public function syncAchievementBadges(array $metrics = []): void
+    {
+        $definitions = collect(Badge::catalog())->keyBy('slug');
+        $progress = $this->achievementMetrics();
+        foreach (Badge::query()->whereIn('slug', $definitions->keys())->get() as $badge) {
+            $definition = $definitions->get($badge->slug);
+            if ($metrics !== [] && ! in_array($definition['metric'], $metrics, true)) {
+                continue;
+            }
+            $eligible = $progress[$definition['metric']] >= $definition['target'];
+            if ($eligible) {
+                $this->badges()->syncWithoutDetaching([$badge->id]);
+            } elseif (in_array($definition['metric'], ['champions', 'giant_kills', 'streak'], true)) {
+                $this->badges()->detach($badge->id);
+            }
+        }
+    }
+
     /**
      * Calculate total matches count.
      */

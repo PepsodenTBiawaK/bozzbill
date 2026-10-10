@@ -197,7 +197,7 @@
             <div 
                 x-show="showCloseModal" 
                 x-transition.opacity 
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-6 bg-black/80 backdrop-blur-sm"
                 style="display: none;"
             >
                 <div 
@@ -213,40 +213,22 @@
                         </button>
                     </div>
 
-                    <form method="POST" action="{{ route('fun-games.close', $funGame) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('fun-games.close', $funGame) }}" x-data="{ championId: @js((string) old('champion_id', '')), runnerId: @js((string) old('runner_up_id', '')), thirdId: @js((string) old('third_place_id', '')) }" class="space-y-4">
                         @csrf
 
                         <!-- Juara 1 -->
                         <div>
-                            <label class="block text-xs font-bold text-[#dea538] mb-1.5 uppercase tracking-wider">Juara 1 (Champion) *</label>
-                            <select name="champion_id" required class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3.5 py-2.5 text-white text-sm outline-none">
-                                <option value="">-- Pilih Juara 1 --</option>
-                                @foreach ($members as $m)
-                                    <option value="{{ $m->id }}">{{ $m->name }} (HC {{ $m->handicap->value }})</option>
-                                @endforeach
-                            </select>
+                            <x-player-picker :players="$members" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
                         </div>
 
                         <!-- Juara 2 -->
                         <div>
-                            <label class="block text-xs font-bold text-[#9ca3af] mb-1.5 uppercase tracking-wider">Juara 2 (Runner-Up)</label>
-                            <select name="runner_up_id" class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3.5 py-2.5 text-white text-sm outline-none">
-                                <option value="">-- Pilih Juara 2 (Opsional) --</option>
-                                @foreach ($members as $m)
-                                    <option value="{{ $m->id }}">{{ $m->name }} (HC {{ $m->handicap->value }})</option>
-                                @endforeach
-                            </select>
+                            <x-player-picker :players="$members" name="runner_up_id" label="Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_id', '')" exclude="[championId, thirdId]"  />
                         </div>
 
                         <!-- Juara 3 -->
                         <div>
-                            <label class="block text-xs font-bold text-amber-600 mb-1.5 uppercase tracking-wider">Juara 3 (3rd Place)</label>
-                            <select name="third_place_id" class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3.5 py-2.5 text-white text-sm outline-none">
-                                <option value="">-- Pilih Juara 3 (Opsional) --</option>
-                                @foreach ($members as $m)
-                                    <option value="{{ $m->id }}">{{ $m->name }} (HC {{ $m->handicap->value }})</option>
-                                @endforeach
-                            </select>
+                            <x-player-picker :players="$members" name="third_place_id" label="Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_id', '')" exclude="[championId, runnerId]"  />
                         </div>
 
                         <p class="text-[11px] text-[#888e9b] pt-1">

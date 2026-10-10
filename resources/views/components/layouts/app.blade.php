@@ -22,10 +22,10 @@
         <aside class="hidden lg:flex flex-col w-[253px] shrink-0 bg-[#191919] border-r border-[#333741] sticky top-0 h-screen z-40 select-none">
             
             <!-- Sidebar Header / Logo -->
-            <div class="p-6 flex items-center justify-between border-b border-[#2e313a]">
+            <div class="px-5 py-4 flex items-center justify-between border-b border-[#2e313a]">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Logo" class="h-8 w-auto shrink-0" />
-                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-3.5 w-auto" />
+                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Logo" class="h-7 w-auto shrink-0" />
+                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-3 w-auto" />
                 </a>
             </div>
 
@@ -151,10 +151,10 @@
         <div class="flex-1 flex flex-col min-w-0">
             
             <!-- Mobile Top Header (Hidden on Desktop) -->
-            <header class="lg:hidden flex items-center justify-between px-4 py-3.5 bg-[#191919] border-b border-[#333741] sticky top-0 z-30 select-none">
+            <header class="lg:hidden flex items-center justify-between px-4 py-3 bg-[#191919] border-b border-[#333741] sticky top-0 z-30 select-none">
                 <a href="{{ route('home') }}" class="flex items-center gap-2 shrink-0">
-                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Logo" class="h-8 w-auto" />
-                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-2.5 sm:h-3.5 w-auto" />
+                    <img src="{{ asset('images/logo-mark.svg') }}" alt="Logo" class="h-7 w-auto" />
+                    <img src="{{ asset('images/logo-text.svg') }}" alt="BOZZ BILLIARD" class="h-2.5 sm:h-3 w-auto" />
                 </a>
 
                 <div class="flex items-center gap-2 shrink-0">

@@ -13,8 +13,7 @@
             </div>
         @endif
         <form method="POST" action="{{ route('fun-games.matches.update', [$funGame, $match]) }}"
-            x-data="{ player1Id: @js((string) old('player1_id', $match->player1_id)), player2Id: @js((string) old('player2_id', $match->player2_id)), winnerId: @js((string) old('winner_id', $match->winner_id)), players: @js($members->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name])->values()->all()) }"
-            x-init="$watch('player1Id', () => { if (winnerId !== player1Id && winnerId !== player2Id) winnerId = ''; }); $watch('player2Id', () => { if (winnerId !== player1Id && winnerId !== player2Id) winnerId = ''; })"
+            x-data="{ player1Id: @js((string) old('player1_id', $match->player1_id)), player2Id: @js((string) old('player2_id', $match->player2_id)), winnerId: @js((string) old('winner_id', $match->winner_id)) }"
             class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 space-y-5">
             @csrf
             @method('PUT')
@@ -22,12 +21,7 @@
                 @foreach ([1, 2] as $side)
                     <div class="space-y-3">
                         <div>
-                            <label for="edit-player{{ $side }}" class="block text-xs text-[#d4d4d4] font-semibold mb-1.5">Pemain {{ $side }}</label>
-                            <select id="edit-player{{ $side }}" name="player{{ $side }}_id" x-model="player{{ $side }}Id" required class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3 py-2.5 text-white text-sm outline-none">
-                                @foreach ($members as $player)
-                                    <option value="{{ $player->id }}" @selected((string) old('player'.$side.'_id', $match->{'player'.$side.'_id'}) === (string) $player->id) :disabled="'{{ $player->id }}' === player{{ $side === 1 ? 2 : 1 }}Id">{{ $player->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-player-picker :players="$members" :name="'player'.$side.'_id'" :label="'Pemain '.$side" :value="old('player'.$side.'_id', $match->{'player'.$side.'_id'})" x-model="player{{ $side }}Id" exclude="[player{{ $side === 1 ? 2 : 1 }}Id]" required />
                         </div>
                         <div>
                             <label for="edit-score{{ $side }}" class="block text-xs text-[#d4d4d4] font-semibold mb-1.5">Skor Pemain {{ $side }}</label>
@@ -37,13 +31,7 @@
                 @endforeach
             </div>
             <div>
-                <label for="edit-winner" class="block text-xs text-[#d4d4d4] font-semibold mb-1.5">Pemenang</label>
-                <select id="edit-winner" name="winner_id" x-model="winnerId" required class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3 py-2.5 text-white text-sm outline-none">
-                    <option value="">Pilih pemenang</option>
-                    <template x-for="player in players.filter(player => player.id === player1Id || player.id === player2Id)" :key="player.id">
-                        <option :value="player.id" x-text="player.name" :selected="player.id === winnerId"></option>
-                    </template>
-                </select>
+                <x-player-picker :players="$members" name="winner_id" label="Pemenang" :value="old('winner_id', $match->winner_id)" x-model="winnerId" allowed="[player1Id, player2Id]" required />
             </div>
             <div>
                 <label for="edit-stage" class="block text-xs text-[#d4d4d4] font-semibold mb-1.5">Babak / Ronde</label>

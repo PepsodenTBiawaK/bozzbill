@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Badge;
 use App\Models\MatchLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,7 +38,7 @@ class HomeController extends Controller
 
         // Badges for user
         $badges = $user->badges()->get();
-        $allBadges = Badge::all();
+        $achievements = $user->achievementProgress();
 
         return view('home', [
             'user' => $user,
@@ -47,7 +46,7 @@ class HomeController extends Controller
             'recentFunGames' => $recentFunGames,
             'recentMatches' => $recentMatches,
             'badges' => $badges,
-            'allBadges' => $allBadges,
+            'achievements' => $achievements->sortByDesc('unlocked')->take(3)->values(),
         ]);
     }
 }

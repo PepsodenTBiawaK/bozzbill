@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Badge;
 use App\Models\PlayerDrill;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -77,22 +76,7 @@ class DrillingController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Check for Achievement Badges
-        // 1. Sharpshooter: Akurasi >= 80%
-        if ($drill->accuracy_percentage >= 80.0) {
-            $sharpshooter = Badge::where('slug', 'sharpshooter')->first();
-            if ($sharpshooter && ! $user->badges()->where('badge_id', $sharpshooter->id)->exists()) {
-                $user->badges()->attach($sharpshooter->id);
-            }
-        }
-
-        // 2. Drill Master: >= 50 total drills
-        if ($user->playerDrills()->count() >= 50) {
-            $drillMaster = Badge::where('slug', 'drill-master')->first();
-            if ($drillMaster && ! $user->badges()->where('badge_id', $drillMaster->id)->exists()) {
-                $user->badges()->attach($drillMaster->id);
-            }
-        }
+        $user->syncAchievementBadges(['accuracy', 'drill_sessions']);
 
         return redirect()
             ->route('drilling')

@@ -268,6 +268,10 @@ class ImportCommunityHistory extends Command
             ], $counts);
         }
 
+        foreach ($users as $user) {
+            $user->syncAchievementBadges(['champions', 'giant_kills', 'streak']);
+        }
+
         return $counts;
     }
 
