@@ -44,9 +44,7 @@
 
             <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10 text-center sm:text-left">
                 <!-- Avatar -->
-                <div class="w-20 h-20 rounded-full bg-[#16171a] border-2 border-[#dea538]/60 flex items-center justify-center text-2xl font-black text-[#dea538] shrink-0 shadow-lg">
-                    {{ $user->initials }}
-                </div>
+                <x-player-avatar :player="$user" class="w-20 h-20 rounded-full bg-[#16171a] border-2 border-[#dea538]/60 text-2xl font-black text-[#dea538] shadow-lg" />
 
                 <!-- Info -->
                 <div class="flex-1 min-w-0">
@@ -73,6 +71,12 @@
                             <span class="text-xs font-bold text-white">{{ $user->totalMatchesCount() }}</span>
                         </div>
                     </div>
+                    <a href="{{ route('drilling') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#dea538] hover:underline mt-4">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Jurnal Drilling
+                    </a>
                 </div>
             </div>
         </div>
@@ -145,9 +149,69 @@
             <div class="bg-[#202227] border border-[#333741] rounded-3xl p-6 shadow-xl">
                 <h3 class="text-lg font-bold text-white mb-4">Informasi Profil</h3>
                 
-                <form method="POST" action="{{ route('profile.update') }}" class="space-y-4">
+                <form
+                    method="POST"
+                    action="{{ route('profile.update') }}"
+                    enctype="multipart/form-data"
+                    class="space-y-4"
+                    x-data="{
+                        previewUrl: null,
+                        removeAvatar: @js((bool) old('remove_avatar', false)),
+                        hasAvatar: {{ $user->avatar ? 'true' : 'false' }},
+                        previewError: '',
+                        releasePreview() {
+                            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                            this.previewUrl = null;
+                        },
+                        chooseAvatar(event) {
+                            this.releasePreview();
+                            this.previewError = '';
+                            const file = event.target.files[0];
+                            if (!file) return;
+                            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+                                this.previewError = 'Pilih foto JPG, PNG, atau WebP dengan ukuran maksimal 2 MB.';
+                                event.target.value = '';
+                                return;
+                            }
+                            this.removeAvatar = false;
+                            this.previewUrl = URL.createObjectURL(file);
+                        },
+                        clearAvatar() {
+                            this.releasePreview();
+                            this.previewError = '';
+                            this.$refs.avatarInput.value = '';
+                            this.removeAvatar = true;
+                        },
+                        destroy() { this.releasePreview(); }
+                    }"
+                >
                     @csrf
                     @method('PUT')
+
+                    <input type="hidden" name="remove_avatar" :value="removeAvatar ? '1' : '0'" value="{{ (bool) old('remove_avatar', false) ? '1' : '0' }}" />
+                    <div>
+                        <label for="avatar" class="block text-xs font-medium text-[#d4d4d4] mb-2">Foto Profil</label>
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-full bg-[#16171a] border-2 border-[#dea538]/60 text-[#dea538] text-xl font-bold flex items-center justify-center shrink-0 overflow-hidden">
+                                <template x-if="previewUrl">
+                                    <img :src="previewUrl" alt="Pratinjau foto profil" class="w-full h-full object-cover" />
+                                </template>
+                                <div x-show="!previewUrl && !removeAvatar" class="w-full h-full" style="{{ (bool) old('remove_avatar', false) ? 'display: none;' : '' }}">
+                                    <x-player-avatar :player="$user" class="w-full h-full" />
+                                </div>
+                                <span x-show="!previewUrl && removeAvatar" style="{{ (bool) old('remove_avatar', false) ? '' : 'display: none;' }}">{{ $user->initials }}</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <label for="avatar" class="inline-flex items-center px-3 py-2 rounded-xl bg-[#252830] hover:bg-[#2f333e] border border-[#383d4a] text-white text-xs font-semibold cursor-pointer transition">Pilih Foto</label>
+                                <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp" x-ref="avatarInput" @change="chooseAvatar($event)" class="sr-only" />
+                                <button type="button" @click="clearAvatar()" x-show="(hasAvatar || previewUrl) && !removeAvatar" style="{{ ! $user->avatar || (bool) old('remove_avatar', false) ? 'display: none;' : '' }}" class="text-xs text-rose-400 hover:text-rose-300 font-medium ml-3 cursor-pointer">Hapus Foto</button>
+                                <p class="text-[11px] text-[#787e8c] mt-2">JPG, PNG, atau WebP. Maksimal 2 MB.</p>
+                            </div>
+                        </div>
+                        <p x-show="previewError" x-text="previewError" role="alert" class="text-xs text-rose-400 mt-2"></p>
+                        <p x-show="previewUrl" style="display: none;" class="text-xs text-[#dea538] mt-2">Foto baru akan disimpan saat Anda memilih Simpan Profil.</p>
+                        <p x-show="removeAvatar" style="{{ (bool) old('remove_avatar', false) ? '' : 'display: none;' }}" class="text-xs text-[#959595] mt-2">Foto akan dihapus saat Anda memilih Simpan Profil.</p>
+                    </div>
 
                     <div>
                         <label for="name" class="block text-xs font-medium text-[#d4d4d4] mb-1.5">Nama Lengkap</label>
@@ -156,6 +220,7 @@
                             id="name" 
                             name="name" 
                             value="{{ old('name', $user->name) }}" 
+                            maxlength="100"
                             required 
                             class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none transition"
                         />

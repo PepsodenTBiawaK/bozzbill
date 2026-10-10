@@ -4,34 +4,89 @@
         <!-- ================= GREETING / PAGE HEADER ================= -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
+                <a
+                    href="{{ route('roster', ['tab' => 'roster']) }}"
+                    onclick="if (window.history.length > 1) { window.history.back(); return false; }"
+                    aria-label="Kembali ke halaman sebelumnya"
+                    class="inline-flex items-center gap-1.5 min-h-11 text-xs font-semibold text-[#dea538] hover:underline mb-1"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Kembali
+                </a>
                 <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight">
                     Head to Head
                 </h1>
                 <p class="text-sm sm:text-base text-[#9ca3af] mt-1">
-                    Cek statistik head to head dengan temanmu!
+                    Pilih dua pemain untuk melihat statistik dan riwayat pertemuan mereka.
                 </p>
             </div>
 
-            <!-- Opponent Selector -->
-            @if ($opponents->isNotEmpty())
-                <div class="flex items-center gap-2 bg-[#202227] border border-[#333741] p-1.5 rounded-2xl shadow-md">
-                    <label for="opponent_select" class="text-xs text-[#888e9b] font-medium px-2">Lawan:</label>
-                    <select 
-                        id="opponent_select"
-                        onchange="window.location.href = '{{ route('head-to-head') }}?opponent_id=' + this.value"
-                        class="bg-[#151619] border border-[#333741] text-white text-xs sm:text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-[#dea538] cursor-pointer"
-                    >
-                        @foreach ($opponents as $opp)
-                            <option value="{{ $opp->id }}" {{ $selectedOpponent?->id === $opp->id ? 'selected' : '' }}>
-                                {{ $opp->name }} (HC {{ $opp->handicap->value }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-            @endif
         </div>
 
-        @if ($selectedOpponent)
+        @if ($errors->any())
+            <div role="alert" class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                @foreach ($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
+        @if ($activeUsers->isNotEmpty())
+            <form
+                method="GET"
+                action="{{ route('head-to-head') }}"
+                x-data="{
+                    players: @js($activeUsers->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name, 'handicap' => $player->handicap->value])->values()->all()),
+                    player1Id: @js((string) ($selectedPlayer1?->id ?? '')),
+                    opponentId: @js((string) ($selectedOpponent?->id ?? '')),
+                    firstSearch: '',
+                    secondSearch: '',
+                    matchingPlayers(search, selectedId) {
+                        const query = search.trim().toLocaleLowerCase();
+                        return this.players.filter(player => player.id === selectedId || player.name.toLocaleLowerCase().includes(query) || player.handicap.toLocaleLowerCase().includes(query));
+                    },
+                    swapPlayers() {
+                        const firstPlayerId = this.player1Id;
+                        this.player1Id = this.opponentId;
+                        this.opponentId = firstPlayerId;
+                        this.firstSearch = '';
+                        this.secondSearch = '';
+                    }
+                }"
+                class="bg-[#202227] border border-[#333741] rounded-2xl p-4 sm:p-5 shadow-md space-y-4"
+            >
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label for="player1_select" class="text-xs text-[#d4d4d4] font-semibold">Pemain 1</label>
+                        <input type="search" x-model="firstSearch" aria-label="Cari pemain pertama" placeholder="Cari nama atau HC" class="w-full bg-[#151619] border border-[#333741] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538]" />
+                        <select id="player1_select" name="player1_id" x-model="player1Id" required class="w-full min-h-11 bg-[#151619] border border-[#333741] text-white text-sm font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538] cursor-pointer">
+                            <option value="">Pilih pemain pertama</option>
+                            <template x-for="player in matchingPlayers(firstSearch, player1Id)" :key="player.id">
+                                <option :value="player.id" :selected="player.id === player1Id" :disabled="player.id === opponentId" x-text="`${player.name} (HC ${player.handicap})`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="opponent_select" class="text-xs text-[#d4d4d4] font-semibold">Pemain 2</label>
+                        <input type="search" x-model="secondSearch" aria-label="Cari pemain kedua" placeholder="Cari nama atau HC" class="w-full bg-[#151619] border border-[#333741] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538]" />
+                        <select id="opponent_select" name="opponent_id" x-model="opponentId" required class="w-full min-h-11 bg-[#151619] border border-[#333741] text-white text-sm font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538] cursor-pointer">
+                            <option value="">Pilih pemain kedua</option>
+                            <template x-for="player in matchingPlayers(secondSearch, opponentId)" :key="player.id">
+                                <option :value="player.id" :selected="player.id === opponentId" :disabled="player.id === player1Id" x-text="`${player.name} (HC ${player.handicap})`"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="submit" :disabled="!player1Id || !opponentId || player1Id === opponentId" class="min-h-11 px-5 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Bandingkan Pemain</button>
+                    <button type="button" @click="swapPlayers()" :disabled="!player1Id || !opponentId || player1Id === opponentId" class="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-[#151619] border border-[#333741] text-[#d4d4d4] text-sm font-semibold hover:text-white transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Tukar Posisi</button>
+                </div>
+            </form>
+        @endif
+
+        @if ($selectedPlayer1 && $selectedOpponent && ! $errors->any())
             <!-- ================= TOP CARD: DUEL COMPARISON (Figma Node 188:2730) ================= -->
             <div class="bg-[#202227] border border-[#333741] rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
                 
@@ -45,22 +100,20 @@
                     <!-- Players Row -->
                     <div class="grid grid-cols-12 items-center gap-4 sm:gap-6 mb-8 sm:mb-12">
                         
-                        <!-- Player 1: Current User (Cols 1-5) -->
+                        <!-- Player 1 (Cols 1-5) -->
                         <div class="col-span-5 flex flex-col items-center text-center">
                             <!-- Avatar Circle with Gold Border -->
-                            <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-[#16171a] border-2 sm:border-3 border-[#dea538] flex items-center justify-center text-white font-black text-2xl sm:text-4xl shadow-xl shadow-black/40">
-                                {{ $user->initials }}
-                            </div>
+                            <x-player-avatar :player="$selectedPlayer1" class="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-[#16171a] border-2 sm:border-3 border-[#dea538] text-white font-black text-2xl sm:text-4xl shadow-xl shadow-black/40" />
                             
                             <!-- Label & Name -->
                             <p class="text-[10px] sm:text-xs uppercase tracking-widest font-semibold text-[#dea538] mt-3 sm:mt-4">
                                 BOZZBILL PLAYER
                             </p>
                             <h2 class="text-base sm:text-2xl font-bold text-white tracking-tight mt-0.5">
-                                {{ $user->name }}
+                                {{ $selectedPlayer1->name }}
                             </h2>
                             <p class="text-xs sm:text-sm font-semibold text-[#9ca3af] mt-0.5">
-                                HC {{ $user->handicap->value }}
+                                HC {{ $selectedPlayer1->handicap->value }}
                             </p>
                         </div>
 
@@ -77,9 +130,7 @@
                         <!-- Player 2: Opponent (Cols 8-12) -->
                         <div class="col-span-5 flex flex-col items-center text-center">
                             <!-- Avatar Circle with Gold Border -->
-                            <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-[#16171a] border-2 sm:border-3 border-[#dea538] flex items-center justify-center text-white font-black text-2xl sm:text-4xl shadow-xl shadow-black/40">
-                                {{ $selectedOpponent->initials }}
-                            </div>
+                            <x-player-avatar :player="$selectedOpponent" class="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-[#16171a] border-2 sm:border-3 border-[#dea538] text-white font-black text-2xl sm:text-4xl shadow-xl shadow-black/40" />
                             
                             <!-- Label & Name -->
                             <p class="text-[10px] sm:text-xs uppercase tracking-widest font-semibold text-[#dea538] mt-3 sm:mt-4">
@@ -156,7 +207,7 @@
                             Riwayat Pertemuan
                         </h3>
                         <p class="text-xs text-[#959595] mt-0.5">
-                            Daftar seluruh match resmi antara {{ $user->name }} dan {{ $selectedOpponent->name }}
+                            Daftar seluruh match resmi antara {{ $selectedPlayer1->name }} dan {{ $selectedOpponent->name }}
                         </p>
                     </div>
 
@@ -169,9 +220,9 @@
                 <div class="space-y-3">
                     @forelse ($h2h['matches'] as $match)
                         @php
-                            $isUserWinner = $match->winner_id === $user->id;
-                            $userScore = $match->player1_id === $user->id ? $match->player1_score : $match->player2_score;
-                            $oppScore = $match->player1_id === $user->id ? $match->player2_score : $match->player1_score;
+                            $isUserWinner = $match->winner_id === $selectedPlayer1->id;
+                            $userScore = $match->player1_id === $selectedPlayer1->id ? $match->player1_score : $match->player2_score;
+                            $oppScore = $match->player1_id === $selectedPlayer1->id ? $match->player2_score : $match->player1_score;
                             $winnerName = $match->winner?->name ?? 'Pemenang';
                         @endphp
 
@@ -226,7 +277,7 @@
                             </svg>
                             <p class="text-sm font-semibold text-white">Belum Ada Riwayat Pertandingan</p>
                             <p class="text-xs text-[#888e9b] mt-1">
-                                Anda dan {{ $selectedOpponent->name }} belum pernah bertemu dalam pertandingan Fun Game resmi.
+                                {{ $selectedPlayer1->name }} dan {{ $selectedOpponent->name }} belum pernah bertemu dalam pertandingan Fun Game resmi.
                             </p>
                         </div>
                     @endforelse
@@ -235,7 +286,7 @@
             </div>
         @else
             <div class="p-8 text-center bg-[#202227] rounded-3xl border border-[#333741]">
-                <p class="text-sm text-[#888e9b]">Belum ada member lain yang terdaftar di komunitas.</p>
+                <p class="text-sm text-[#888e9b]">{{ $activeUsers->count() < 2 ? 'Belum ada dua pemain aktif untuk dibandingkan.' : 'Pilih dua pemain berbeda untuk melihat riwayat pertemuan.' }}</p>
             </div>
         @endif
 

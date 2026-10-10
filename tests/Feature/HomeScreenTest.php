@@ -38,8 +38,11 @@ test('admin sees admin section in navigation', function () {
     $response = $this->actingAs($admin)->get(route('home'));
 
     $response->assertStatus(200);
-    $response->assertSee('Evaluating HC');
-    $response->assertSee('Input Fun Game');
+    $response->assertSee('Evaluasi HC');
+    $response->assertSee('Pengurus');
+    $response->assertSee('href="'.route('dashboard').'"', false);
+    $response->assertDontSee('Input Fun Game');
+    $response->assertDontSee('Add Member');
 });
 
 test('regular member does not see admin-only menu items', function () {
@@ -48,5 +51,6 @@ test('regular member does not see admin-only menu items', function () {
     $response = $this->actingAs($member)->get(route('home'));
 
     $response->assertStatus(200);
-    $response->assertDontSee('Evaluating HC');
+    $response->assertDontSee('Evaluasi HC');
+    $response->assertDontSee('href="'.route('dashboard').'"', false);
 });

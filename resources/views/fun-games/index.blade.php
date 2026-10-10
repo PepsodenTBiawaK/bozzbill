@@ -56,6 +56,16 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div role="alert" class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                <ul class="list-disc list-inside space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <!-- ================= ACTIVE / LIVE EVENT CARD ================= -->
         @if ($activeEvent)
             <div class="bg-gradient-to-br from-[#202227] to-[#16171a] border-2 border-[#dea538]/50 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-2xl">

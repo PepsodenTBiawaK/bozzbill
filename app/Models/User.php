@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 
 class User extends Authenticatable
 {
@@ -81,6 +82,24 @@ class User extends Authenticatable
     public function isMember(): bool
     {
         return $this->role === UserRole::Member;
+    }
+
+    /**
+     * Get partially masked phone number for member privacy (e.g. "0812••••789").
+     */
+    public function maskedPhone(): string
+    {
+        $phone = (string) $this->phone;
+        $len = strlen($phone);
+        if ($len <= 6) {
+            return $phone;
+        }
+
+        $prefix = substr($phone, 0, 4);
+        $suffix = substr($phone, -3);
+        $maskCount = max(4, $len - 7);
+
+        return $prefix.str_repeat('•', $maskCount).$suffix;
     }
 
     /**
@@ -336,23 +355,25 @@ class User extends Authenticatable
     /**
      * Evaluate handicap performance based on the last 4 completed Fun Games.
      *
+     * @param  Collection<int, MatchLog>|null  $matches
      * @return array<string, mixed>
      */
-    public function evaluateHandicap(): array
+    public function evaluateHandicap(?Collection $matches = null): array
     {
-        $last4FunGames = FunGame::where('status', FunGameStatus::Completed)
-            ->latest('event_date')
-            ->take(4)
-            ->get();
+        if ($matches === null) {
+            $funGameIds = FunGame::where('status', FunGameStatus::Completed)
+                ->latest('event_date')
+                ->latest('id')
+                ->take(4)
+                ->pluck('id');
 
-        $funGameIds = $last4FunGames->pluck('id');
-
-        $matches = MatchLog::whereIn('fun_game_id', $funGameIds)
-            ->where(function ($q): void {
-                $q->where('player1_id', $this->id)
-                    ->orWhere('player2_id', $this->id);
-            })
-            ->get();
+            $matches = MatchLog::whereIn('fun_game_id', $funGameIds)
+                ->where(function ($q): void {
+                    $q->where('player1_id', $this->id)
+                        ->orWhere('player2_id', $this->id);
+                })
+                ->get();
+        }
 
         $totalMatches = $matches->count();
         $wins = $matches->where('winner_id', $this->id)->count();

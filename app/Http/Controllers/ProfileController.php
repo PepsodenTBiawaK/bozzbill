@@ -5,9 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
+use Throwable;
 
 class ProfileController extends Controller
 {
@@ -36,11 +41,59 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_avatar' => ['nullable', 'boolean'],
+        ], [
+            'avatar.image' => 'Foto profil harus berupa gambar.',
+            'avatar.mimes' => 'Foto profil harus berformat JPG, PNG, atau WebP.',
+            'avatar.max' => 'Ukuran foto profil maksimal 2 MB.',
+            'remove_avatar.boolean' => 'Pilihan hapus foto profil tidak valid.',
         ]);
 
-        $user->update([
+        if ($request->hasFile('avatar') && $request->boolean('remove_avatar')) {
+            throw ValidationException::withMessages([
+                'avatar' => 'Pilih foto baru atau hapus foto saat ini, salah satu saja.',
+            ]);
+        }
+
+        $oldAvatarPath = $user->avatar;
+        $newAvatarPath = null;
+        $attributes = [
             'name' => $validated['name'],
-        ]);
+            'avatar' => $oldAvatarPath,
+        ];
+
+        if ($request->hasFile('avatar')) {
+            $newAvatarPath = $request->file('avatar')->store('avatars', 'public');
+
+            if ($newAvatarPath === false) {
+                throw ValidationException::withMessages([
+                    'avatar' => 'Foto profil gagal disimpan. Silakan coba lagi.',
+                ]);
+            }
+
+            $attributes['avatar'] = $newAvatarPath;
+        } elseif ($request->boolean('remove_avatar')) {
+            $attributes['avatar'] = null;
+        }
+
+        try {
+            DB::transaction(function () use ($user, $attributes): void {
+                if (! $user->update($attributes)) {
+                    throw new RuntimeException('Profil gagal disimpan.');
+                }
+            });
+        } catch (Throwable $exception) {
+            if ($newAvatarPath !== null) {
+                Storage::disk('public')->delete($newAvatarPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($oldAvatarPath && $oldAvatarPath !== $attributes['avatar']) {
+            Storage::disk('public')->delete($oldAvatarPath);
+        }
 
         return redirect()->route('profile')->with('status_success', 'Profil Anda berhasil diperbarui.');
     }

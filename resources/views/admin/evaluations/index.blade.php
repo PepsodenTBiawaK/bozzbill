@@ -85,9 +85,7 @@
                     <!-- Player Identity & Current HC -->
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-3">
-                            <div class="w-11 h-11 rounded-full bg-[#16171a] border border-[#383838] flex items-center justify-center text-white font-bold text-base shadow-inner">
-                                {{ $member->initials }}
-                            </div>
+                            <x-player-avatar :player="$member" class="w-11 h-11 rounded-full bg-[#16171a] border border-[#383838] text-white font-bold text-base shadow-inner" />
                             <div>
                                 <h3 class="text-lg font-bold text-white tracking-tight">
                                     {{ $member->name }}

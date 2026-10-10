@@ -206,12 +206,14 @@
 
                         <!-- Remember Me -->
                         <div class="flex items-center pt-0.5">
+                            <input type="hidden" name="remember" value="0" />
                             <label class="flex items-center gap-2 cursor-pointer select-none">
                                 <input 
                                     type="checkbox" 
                                     name="remember" 
+                                    value="1"
                                     class="w-4 h-4 rounded bg-[#151619] border-[#333741] text-[#dea538] focus:ring-[#dea538] focus:ring-offset-0" 
-                                    checked
+                                    @checked(old('remember', '1') === '1')
                                 />
                                 <span class="text-xs text-[#a0a5b1]">Ingat saya di perangkat ini</span>
                             </label>

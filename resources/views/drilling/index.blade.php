@@ -11,34 +11,32 @@
             </p>
         </div>
 
-        <!-- ================= TOP STATS ROW (4 CARDS, Figma Node 188:3446) ================= -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5">
+        <!-- ================= PLAYER SUMMARY ================= -->
+        <div class="grid grid-cols-3 lg:grid-cols-12 gap-2 sm:gap-3">
             
-            <!-- Card 1: Player Identity (lg:col-span-4) -->
-            <div class="sm:col-span-2 lg:col-span-4 bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-xl flex items-center justify-between">
+            <!-- Player Identity -->
+            <div class="col-span-3 lg:col-span-5 min-w-0 bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4 relative overflow-hidden shadow-xl flex items-center justify-between gap-3">
                 <!-- Watermark Logo Mark in Background -->
-                <div class="absolute -right-6 -bottom-6 w-40 h-40 opacity-5 pointer-events-none select-none">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 opacity-5 pointer-events-none select-none">
                     <img src="{{ asset('images/logo-mark.svg') }}" alt="" class="w-full h-full object-contain filter invert" />
                 </div>
 
-                <div class="flex items-center gap-4 relative z-10">
-                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#16171a] border-2 border-[#383838] flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0 shadow-inner">
-                        {{ $user->initials }}
-                    </div>
+                <div class="flex items-center gap-3 min-w-0 relative z-10">
+                    <x-player-avatar :player="$user" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#16171a] border-2 border-[#383838] text-white font-bold text-sm sm:text-base shadow-inner" />
 
-                    <div>
-                        <p class="text-[10px] sm:text-xs uppercase tracking-widest font-semibold text-[#dea538]">
+                    <div class="min-w-0">
+                        <p class="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-[#dea538] truncate">
                             BOZZBILL PLAYER
                         </p>
-                        <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mt-0.5">
+                        <h2 class="text-sm sm:text-base font-bold text-white tracking-tight mt-0.5 truncate" title="{{ $user->name }}">
                             {{ $user->name }}
                         </h2>
                     </div>
                 </div>
 
-                <div class="relative z-10 text-right">
+                <div class="relative z-10 text-right shrink-0">
                     <div class="inline-flex flex-col items-center">
-                        <span class="text-lg sm:text-xl font-black text-[#dea538] tracking-wider">
+                        <span class="text-sm sm:text-base font-black text-[#dea538] tracking-wider whitespace-nowrap">
                             HC {{ $user->handicap->value }}
                         </span>
                         <div class="w-full h-0.5 bg-[#dea538] rounded-full mt-0.5"></div>
@@ -46,52 +44,52 @@
                 </div>
             </div>
 
-            <!-- Card 2: Akurasi (lg:col-span-3) -->
-            <div class="lg:col-span-3 bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-xl flex flex-col justify-between">
-                <div class="absolute -top-10 -right-10 w-28 h-28 overflow-hidden pointer-events-none">
-                    <div class="absolute top-0 right-0 w-28 h-4 bg-[#fce2b5] transform rotate-45 translate-x-8 translate-y-2 opacity-90"></div>
-                    <div class="absolute top-0 right-0 w-28 h-6 bg-[#dea538] transform rotate-45 translate-x-6 translate-y-5 shadow-sm"></div>
+            <!-- Akurasi -->
+            <div class="lg:col-span-2 min-w-0 bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4 relative overflow-hidden shadow-xl flex flex-col justify-between">
+                <div class="absolute -top-8 -right-8 w-20 h-20 overflow-hidden pointer-events-none">
+                    <div class="absolute top-0 right-0 w-20 h-3 bg-[#fce2b5] transform rotate-45 translate-x-6 translate-y-2 opacity-90"></div>
+                    <div class="absolute top-0 right-0 w-20 h-4 bg-[#dea538] transform rotate-45 translate-x-4 translate-y-4 shadow-sm"></div>
                 </div>
 
                 <div class="relative z-10">
-                    <p class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+                    <p class="text-xl sm:text-2xl font-black text-white tracking-tight leading-none tabular-nums break-all">
                         {{ $overallAccuracy }}%
                     </p>
-                    <p class="text-xs sm:text-sm font-semibold text-[#dea538] mt-2">
+                    <p class="text-[10px] sm:text-xs leading-tight font-semibold text-[#dea538] mt-1">
                         Akurasi
                     </p>
                 </div>
             </div>
 
-            <!-- Card 3: Total Drilling (lg:col-span-2) -->
-            <div class="lg:col-span-2 bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-xl flex flex-col justify-between">
-                <div class="absolute -top-10 -right-10 w-28 h-28 overflow-hidden pointer-events-none">
-                    <div class="absolute top-0 right-0 w-28 h-4 bg-[#fce2b5] transform rotate-45 translate-x-8 translate-y-2 opacity-90"></div>
-                    <div class="absolute top-0 right-0 w-28 h-6 bg-[#dea538] transform rotate-45 translate-x-6 translate-y-5 shadow-sm"></div>
+            <!-- Total Drilling -->
+            <div class="lg:col-span-2 min-w-0 bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4 relative overflow-hidden shadow-xl flex flex-col justify-between">
+                <div class="absolute -top-8 -right-8 w-20 h-20 overflow-hidden pointer-events-none">
+                    <div class="absolute top-0 right-0 w-20 h-3 bg-[#fce2b5] transform rotate-45 translate-x-6 translate-y-2 opacity-90"></div>
+                    <div class="absolute top-0 right-0 w-20 h-4 bg-[#dea538] transform rotate-45 translate-x-4 translate-y-4 shadow-sm"></div>
                 </div>
 
                 <div class="relative z-10">
-                    <p class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+                    <p class="text-xl sm:text-2xl font-black text-white tracking-tight leading-none tabular-nums break-all">
                         {{ $totalDrills }}
                     </p>
-                    <p class="text-xs sm:text-sm font-semibold text-[#dea538] mt-2">
+                    <p class="text-[10px] sm:text-xs leading-tight font-semibold text-[#dea538] mt-1">
                         Total Drilling
                     </p>
                 </div>
             </div>
 
-            <!-- Card 4: Drilling Bulan Ini (lg:col-span-3) -->
-            <div class="lg:col-span-3 bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-xl flex flex-col justify-between">
-                <div class="absolute -top-10 -right-10 w-28 h-28 overflow-hidden pointer-events-none">
-                    <div class="absolute top-0 right-0 w-28 h-4 bg-[#fce2b5] transform rotate-45 translate-x-8 translate-y-2 opacity-90"></div>
-                    <div class="absolute top-0 right-0 w-28 h-6 bg-[#dea538] transform rotate-45 translate-x-6 translate-y-5 shadow-sm"></div>
+            <!-- Drilling Bulan Ini -->
+            <div class="lg:col-span-3 min-w-0 bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4 relative overflow-hidden shadow-xl flex flex-col justify-between">
+                <div class="absolute -top-8 -right-8 w-20 h-20 overflow-hidden pointer-events-none">
+                    <div class="absolute top-0 right-0 w-20 h-3 bg-[#fce2b5] transform rotate-45 translate-x-6 translate-y-2 opacity-90"></div>
+                    <div class="absolute top-0 right-0 w-20 h-4 bg-[#dea538] transform rotate-45 translate-x-4 translate-y-4 shadow-sm"></div>
                 </div>
 
                 <div class="relative z-10">
-                    <p class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+                    <p class="text-xl sm:text-2xl font-black text-white tracking-tight leading-none tabular-nums break-all">
                         {{ $thisMonthCount }}
                     </p>
-                    <p class="text-xs sm:text-sm font-semibold text-[#dea538] mt-2">
+                    <p class="text-[10px] sm:text-xs leading-tight font-semibold text-[#dea538] mt-1">
                         Drilling Bulan Ini
                     </p>
                 </div>

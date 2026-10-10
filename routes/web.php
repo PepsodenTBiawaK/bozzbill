@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DrillingController;
 use App\Http\Controllers\FunGameController;
 use App\Http\Controllers\HandicapEvaluationController;
@@ -24,6 +25,7 @@ Route::middleware('auth')->group(function (): void {
 
     // Home / Paspor Pemain
     Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Profil Pemain & Riwayat HC
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
@@ -44,6 +46,8 @@ Route::middleware('auth')->group(function (): void {
     // Komunitas Roster & Leaderboard
     Route::get('/roster', [RosterController::class, 'index'])->name('roster');
     Route::post('/members', [RosterController::class, 'storeMember'])->name('members.store');
+    Route::get('/roster/{user}', [RosterController::class, 'show'])->name('roster.show');
+    Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->name('roster.reset-password');
 
     // Modul Fun Game & Match Logger
     Route::get('/fun-games', [FunGameController::class, 'index'])->name('fun-games.index');

@@ -8,7 +8,12 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RosterController extends Controller
@@ -93,6 +98,83 @@ class RosterController extends Controller
             'rosterByHandicap' => $rosterByHandicap,
             'totalActiveMembers' => $allMembers->count(),
         ]);
+    }
+
+    /**
+     * Show a community member's player passport.
+     */
+    public function show(User $user): View
+    {
+        abort_unless($user->isMember(), 404);
+        abort_unless($user->is_active || Auth::user()->isAdmin(), 404);
+
+        $totalMatches = $user->totalMatchesCount();
+        $wins = $user->totalWinsCount();
+
+        $recentMatches = $user->allMatches()
+            ->with(['player1', 'player2', 'winner', 'funGame'])
+            ->latest()
+            ->latest('id')
+            ->take(5)
+            ->get();
+
+        return view('roster.show', [
+            'member' => $user,
+            'stats' => [
+                'win_rate' => $totalMatches > 0 ? round(($wins / $totalMatches) * 100, 1) : 0.0,
+                'total_matches' => $totalMatches,
+                'wins' => $wins,
+                'total_losses' => max(0, $totalMatches - $wins),
+                'fun_games_count' => $user->funGamesParticipatedCount(),
+            ],
+            'badges' => $user->badges()->get(),
+            'recentMatches' => $recentMatches,
+        ]);
+    }
+
+    /**
+     * Set a new password for an activated community member (Admin).
+     */
+    public function resetPassword(Request $request, User $user): RedirectResponse
+    {
+        if (! Auth::user()?->isAdmin()) {
+            abort(403, 'Akses terbatas untuk Pengurus BozzBill.');
+        }
+
+        abort_unless($user->isMember(), 404);
+
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'password' => 'Akun belum diaktifkan. Member perlu melakukan aktivasi akun terlebih dahulu.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'confirmed', Password::min(6)],
+        ], [
+            'password.required' => 'Password baru wajib diisi.',
+            'password.string' => 'Password baru harus berupa teks.',
+            'password.min' => 'Password baru minimal harus 6 karakter.',
+            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        DB::transaction(function () use ($user, $validated): void {
+            $user->forceFill([
+                'password' => Hash::make($validated['password']),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            if (config('session.driver') === 'database') {
+                DB::connection(config('session.connection'))
+                    ->table(config('session.table', 'sessions'))
+                    ->where('user_id', $user->id)
+                    ->delete();
+            }
+        });
+
+        return redirect()
+            ->route('roster.show', $user)
+            ->with('status_success', "Password {$user->name} berhasil direset. Member dapat masuk dengan password baru.");
     }
 
     /**

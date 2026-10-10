@@ -124,9 +124,7 @@
                         @php $p2 = $podium['second']; @endphp
                         <div class="flex flex-col items-center text-center">
                             <div class="relative mb-2">
-                                <div class="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-[#16171a] border-2 border-[#9aa0a6] flex items-center justify-center text-white font-bold text-base sm:text-xl shadow-md">
-                                    {{ $p2['user']->initials }}
-                                </div>
+                                <x-player-avatar :player="$p2['user']" class="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-[#16171a] border-2 border-[#9aa0a6] text-white font-bold text-base sm:text-xl shadow-md" />
                                 <div class="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#4b515d] border border-white text-white font-black text-xs flex items-center justify-center shadow">
                                     2
                                 </div>
@@ -158,9 +156,7 @@
                             </svg>
 
                             <div class="relative mb-2">
-                                <div class="w-18 h-18 sm:w-24 sm:h-24 rounded-full bg-[#16171a] border-3 sm:border-4 border-[#dea538] flex items-center justify-center text-[#dea538] font-black text-xl sm:text-3xl shadow-xl shadow-[#dea538]/10">
-                                    {{ $p1['user']->initials }}
-                                </div>
+                                <x-player-avatar :player="$p1['user']" class="w-18 h-18 sm:w-24 sm:h-24 rounded-full bg-[#16171a] border-3 sm:border-4 border-[#dea538] text-[#dea538] font-black text-xl sm:text-3xl shadow-xl shadow-[#dea538]/10" />
                                 <div class="absolute -bottom-2 inset-x-0 flex justify-center">
                                     <span class="w-7 h-7 rounded-full bg-[#dea538] border-2 border-[#141518] text-[#141518] font-black text-xs flex items-center justify-center shadow">
                                         1
@@ -190,9 +186,7 @@
                         @php $p3 = $podium['third']; @endphp
                         <div class="flex flex-col items-center text-center">
                             <div class="relative mb-2">
-                                <div class="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-[#16171a] border-2 border-[#c88d4b] flex items-center justify-center text-white font-bold text-base sm:text-xl shadow-md">
-                                    {{ $p3['user']->initials }}
-                                </div>
+                                <x-player-avatar :player="$p3['user']" class="w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-[#16171a] border-2 border-[#c88d4b] text-white font-bold text-base sm:text-xl shadow-md" />
                                 <div class="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#7a4e1d] border border-white text-white font-black text-xs flex items-center justify-center shadow">
                                     3
                                 </div>
@@ -239,9 +233,7 @@
                                     {{ $rankNum }}
                                 </span>
 
-                                <div class="w-9 h-9 rounded-full bg-[#16171a] border border-[#333741] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                                    {{ $m->initials }}
-                                </div>
+                                <x-player-avatar :player="$m" class="w-9 h-9 rounded-full bg-[#16171a] border border-[#333741] text-white text-xs font-bold" />
 
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2">
@@ -301,7 +293,7 @@
             </form>
 
             <p class="text-xs text-[#888e9b] px-1">
-                Pilih grup handicap untuk melihat direktori pemain atau tantang duel H2H:
+                Pilih grup handicap, lalu buka profil anggota untuk melihat performanya.
             </p>
 
             <!-- Accordion Groups per Handicap Tier -->
@@ -343,39 +335,34 @@
                             @forelse ($tierData['members'] as $mItem)
                                 @php $m = $mItem['user']; @endphp
                                 <div class="py-3 flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3 min-w-0">
-                                        <div class="w-10 h-10 rounded-full bg-[#16171a] border border-[#383838] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                                            {{ $m->initials }}
-                                        </div>
+                                    <a href="{{ route('roster.show', $m) }}" class="flex items-center gap-3 min-w-0 group">
+                                        <x-player-avatar :player="$m" class="w-10 h-10 rounded-full bg-[#16171a] border border-[#383838] text-white text-xs font-bold" />
 
                                         <div class="min-w-0">
-                                            <p class="text-sm font-bold text-white truncate">
+                                            <p class="text-sm font-bold text-white group-hover:text-[#dea538] transition truncate">
                                                 {{ $m->name }}
                                             </p>
                                             <p class="text-[11px] text-[#888e9b]">
                                                 {{ $mItem['total_matches'] }} Match &bull; {{ $mItem['wins'] }} Menang
                                             </p>
                                         </div>
-                                    </div>
+                                    </a>
 
                                     <div class="flex items-center gap-2 shrink-0">
                                         <span class="px-2.5 py-1 rounded-xl bg-[#151619] border border-[#333741] text-xs font-bold text-[#dea538]">
                                             WR {{ $mItem['win_rate'] }}%
                                         </span>
 
-                                        <!-- Challenge / H2H Link -->
-                                        @if ($m->id !== auth()->id())
-                                            <a 
-                                                href="{{ route('head-to-head', ['opponent_id' => $m->id]) }}" 
-                                                title="Cek Head to Head vs {{ $m->name }}"
-                                                class="w-8 h-8 rounded-xl bg-[#151619] hover:bg-[#dea538] hover:text-[#141518] text-[#888e9b] border border-[#333741] flex items-center justify-center transition cursor-pointer"
-                                            >
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </a>
-                                        @endif
+                                        <a
+                                            href="{{ route('roster.show', $m) }}"
+                                            title="Profil Anggota {{ $m->name }}"
+                                            aria-label="Profil Anggota {{ $m->name }}"
+                                            class="w-8 h-8 rounded-xl bg-[#151619] hover:bg-[#dea538] hover:text-[#141518] text-[#888e9b] border border-[#333741] flex items-center justify-center transition cursor-pointer"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21v-2a8 8 0 0116 0v2" />
+                                            </svg>
+                                        </a>
                                     </div>
                                 </div>
                             @empty
