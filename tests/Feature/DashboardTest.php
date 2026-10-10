@@ -33,8 +33,8 @@ test('the admin dashboard summarizes the community instead of the admin account'
             'completed_events' => 4,
             'drills_this_month' => 4,
         ])
-        ->assertViewHas('recommendationCounts', ['promote' => 1, 'demote' => 0, 'watch' => 1, 'stay' => 4])
-        ->assertViewHas('handicapDistribution', ['3SB' => 1, '3B' => 1, '3N' => 2, '3A' => 2, '3+' => 0])
+        ->assertViewHas('recommendationCounts', ['promote' => 1, 'demote' => 0, 'watch' => 2, 'stay' => 4])
+        ->assertViewHas('handicapDistribution', ['3SB' => 1, '3B' => 1, '3N' => 3, '3A' => 2, '3+' => 0])
         ->assertViewHas('activeEvent', fn ($event): bool => $event->title === 'Fun Game Bozz #13 - Special Edition' && $event->matches_count === 0)
         ->assertViewHas('recentMatches', fn ($matches): bool => $matches->count() === 5 && $matches->every(fn ($match): bool => $match->recorder->is($admin)))
         ->assertSee(route('fun-games.quick-logger'), false)
@@ -66,5 +66,5 @@ test('dashboard recommendations continue to include players with no recent match
 
     $this->actingAs($admin)->get(route('dashboard'))
         ->assertOk()
-        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 1, 'stay' => 0]);
+        ->assertViewHas('recommendationCounts', ['promote' => 0, 'demote' => 0, 'watch' => 2, 'stay' => 0]);
 });

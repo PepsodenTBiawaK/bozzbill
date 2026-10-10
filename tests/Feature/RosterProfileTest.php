@@ -79,7 +79,7 @@ test('a member viewing their own roster profile is not offered a duel against th
         ->assertDontSee('href="'.route('head-to-head', ['opponent_id' => $member->id]).'"', false);
 });
 
-test('regular members cannot view an inactive member profile', function () {
+test('regular members can view an unactivated member profile with masked contact details', function () {
     $viewer = User::factory()->create([
         'phone' => '081111111111',
         'is_active' => true,
@@ -92,7 +92,12 @@ test('regular members cannot view an inactive member profile', function () {
 
     $response = $this->actingAs($viewer)->get(route('roster.show', $member));
 
-    $response->assertNotFound();
+    $response->assertOk()
+        ->assertSee('Belum Aktivasi')
+        ->assertSee($member->maskedPhone())
+        ->assertDontSee($member->phone)
+        ->assertDontSee($member->email)
+        ->assertSee('href="'.route('head-to-head', ['opponent_id' => $member->id]).'"', false);
 });
 
 test('admins can view an inactive member profile without exposing contact details', function () {

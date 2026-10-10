@@ -112,24 +112,33 @@ test('recording a match without an optional stage uses the default stage', funct
     ]);
 });
 
-test('inactive members cannot be recorded as match participants', function () {
+test('unactivated members can be recorded on either side of a match without activating their account', function (string $field) {
     $this->seed();
     $admin = User::where('role', UserRole::Admin)->firstOrFail();
     $inactiveMember = User::where('is_active', false)->firstOrFail();
     $player = User::where('phone', '081111111111')->firstOrFail();
     $event = FunGame::where('status', FunGameStatus::Open)->firstOrFail();
+    $participants = ['player1_id' => $player->id, 'player2_id' => $player->id];
+    $participants[$field] = $inactiveMember->id;
 
     $response = $this->actingAs($admin)->post(route('fun-games.matches.store', $event), [
-        'player1_id' => $inactiveMember->id,
-        'player2_id' => $player->id,
+        ...$participants,
         'player1_score' => 3,
         'player2_score' => 1,
         'winner_id' => $inactiveMember->id,
     ]);
 
-    $response->assertSessionHasErrors('player1_id');
-    expect(MatchLog::count())->toBe(25);
-});
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    $this->assertDatabaseCount('match_logs', 26);
+    $this->assertDatabaseHas('match_logs', [
+        ...$participants,
+        'fun_game_id' => $event->id,
+        'winner_id' => $inactiveMember->id,
+        'recorded_by' => $admin->id,
+    ]);
+    expect($inactiveMember->fresh()->is_active)->toBeFalse();
+    expect($inactiveMember->fresh()->password)->toBeNull();
+})->with(['player1_id', 'player2_id']);
 
 test('podium positions must belong to different players', function () {
     $this->seed();

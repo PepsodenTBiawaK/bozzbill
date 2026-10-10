@@ -20,25 +20,25 @@ class HeadToHeadController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $activeUsers = User::where('is_active', true)
+        $players = User::query()
             ->orderBy('name')
             ->get();
 
-        $defaultPlayer1Id = $activeUsers->contains('id', $user->id)
+        $defaultPlayer1Id = $players->contains('id', $user->id)
             ? $user->id
-            : $activeUsers->first()?->id;
+            : $players->first()?->id;
 
         $validator = Validator::make([
             'player1_id' => $request->query('player1_id', $defaultPlayer1Id),
             'opponent_id' => $request->query('opponent_id'),
         ], [
-            'player1_id' => ['nullable', 'integer', Rule::in($activeUsers->modelKeys())],
-            'opponent_id' => ['nullable', 'integer', Rule::in($activeUsers->modelKeys())],
+            'player1_id' => ['nullable', 'integer', Rule::in($players->modelKeys())],
+            'opponent_id' => ['nullable', 'integer', Rule::in($players->modelKeys())],
         ], [
             'player1_id.integer' => 'Pilih pemain pertama yang valid.',
-            'player1_id.in' => 'Pemain pertama tidak ditemukan atau belum aktif.',
+            'player1_id.in' => 'Pemain pertama tidak ditemukan.',
             'opponent_id.integer' => 'Pilih pemain kedua yang valid.',
-            'opponent_id.in' => 'Pemain kedua tidak ditemukan atau belum aktif.',
+            'opponent_id.in' => 'Pemain kedua tidak ditemukan.',
         ]);
 
         if ($validator->fails()) {
@@ -48,10 +48,10 @@ class HeadToHeadController extends Controller
         $validated = $validator->validated();
 
         $selectedPlayer1 = isset($validated['player1_id'])
-            ? $activeUsers->firstWhere('id', (int) $validated['player1_id'])
+            ? $players->firstWhere('id', (int) $validated['player1_id'])
             : null;
         $selectedOpponent = isset($validated['opponent_id'])
-            ? $activeUsers->firstWhere('id', (int) $validated['opponent_id'])
+            ? $players->firstWhere('id', (int) $validated['opponent_id'])
             : null;
 
         if ($selectedPlayer1 && $selectedOpponent && $selectedPlayer1->is($selectedOpponent)) {
@@ -60,7 +60,7 @@ class HeadToHeadController extends Controller
             ])->redirectTo(route('head-to-head'));
         }
 
-        $opponents = $activeUsers->reject(fn (User $player): bool => $player->id === $selectedPlayer1?->id);
+        $opponents = $players->reject(fn (User $player): bool => $player->id === $selectedPlayer1?->id);
 
         if ($selectedPlayer1 && ! $request->query->has('opponent_id') && $opponents->isNotEmpty()) {
             $frequentOpponentId = $selectedPlayer1->allMatches()
@@ -83,7 +83,7 @@ class HeadToHeadController extends Controller
         ];
 
         return view('head-to-head', [
-            'activeUsers' => $activeUsers,
+            'players' => $players,
             'selectedPlayer1' => $selectedPlayer1,
             'selectedOpponent' => $selectedOpponent,
             'h2h' => $h2hData,

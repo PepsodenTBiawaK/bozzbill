@@ -58,13 +58,13 @@ class FunGameController extends Controller
             },
         ]);
 
-        $activeMembers = User::where('is_active', true)
+        $members = User::query()
             ->orderBy('name')
             ->get();
 
         return view('fun-games.show', [
             'funGame' => $funGame,
-            'members' => $activeMembers,
+            'members' => $members,
         ]);
     }
 
@@ -88,7 +88,7 @@ class FunGameController extends Controller
                 ->with('status_warning', 'Tidak ada event Fun Game yang sedang aktif. Silakan buka event baru terlebih dahulu.');
         }
 
-        $activeMembers = User::where('is_active', true)
+        $members = User::query()
             ->orderBy('name')
             ->get(['id', 'name', 'handicap']);
 
@@ -100,7 +100,7 @@ class FunGameController extends Controller
 
         return view('fun-games.quick-logger', [
             'event' => $activeEvent,
-            'members' => $activeMembers,
+            'members' => $members,
             'recentMatches' => $recentMatches,
         ]);
     }
@@ -157,8 +157,8 @@ class FunGameController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
-            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
+            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
             'player1_score' => ['required', 'integer', 'min:0', 'max:50'],
             'player2_score' => ['required', 'integer', 'min:0', 'max:50'],
             'winner_id' => ['bail', 'required', 'integer'],
@@ -238,9 +238,9 @@ class FunGameController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'champion_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
-            'runner_up_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
-            'third_place_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
+            'champion_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+            'runner_up_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')],
+            'third_place_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')],
         ]);
 
         $validator->after(function (ValidatorInstance $validator) use ($request): void {

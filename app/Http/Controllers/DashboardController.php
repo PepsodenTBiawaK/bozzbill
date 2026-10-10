@@ -43,7 +43,7 @@ class DashboardController extends Controller
         $recommendationCounts = ['promote' => 0, 'demote' => 0, 'watch' => 0, 'stay' => 0];
         $handicapDistribution = array_fill_keys(array_column(Handicap::cases(), 'value'), 0);
 
-        foreach ($activeMembers as $member) {
+        foreach ($members as $member) {
             $memberMatches = $matchesAsPlayerOne->get($member->id, collect())
                 ->concat($matchesAsPlayerTwo->get($member->id, collect()));
             $evaluation = $member->evaluateHandicap($memberMatches);

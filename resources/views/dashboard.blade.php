@@ -9,7 +9,7 @@
             <div tabindex="0" role="region" aria-label="Ringkasan komunitas" class="overflow-x-auto pb-2 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#dea538]">
                 <dl class="grid grid-cols-[repeat(5,minmax(8rem,1fr))] gap-2 sm:gap-3">
                     <div class="bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4">
-                        <dt class="text-[11px] font-medium text-[#959595] leading-tight min-h-7">Member Aktif</dt>
+                        <dt class="text-[11px] font-medium text-[#959595] leading-tight min-h-7">Akun Aktif</dt>
                         <dd class="text-xl sm:text-2xl font-bold text-[#dea538] mt-1 leading-none tabular-nums">{{ $stats['active_members'] }}</dd>
                     </div>
                     <div class="bg-[#202227] border border-[#333741] rounded-2xl p-3 sm:p-4">

@@ -26,9 +26,7 @@ class HandicapEvaluationController extends Controller
 
         $filter = $request->query('filter', 'all');
 
-        // Get all active members (players)
         $players = User::where('role', UserRole::Member)
-            ->where('is_active', true)
             ->orderBy('name')
             ->get();
 

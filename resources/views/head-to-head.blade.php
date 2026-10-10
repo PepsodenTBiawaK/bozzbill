@@ -33,12 +33,12 @@
             </div>
         @endif
 
-        @if ($activeUsers->isNotEmpty())
+        @if ($players->isNotEmpty())
             <form
                 method="GET"
                 action="{{ route('head-to-head') }}"
                 x-data="{
-                    players: @js($activeUsers->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name, 'handicap' => $player->handicap->value])->values()->all()),
+                    players: @js($players->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name, 'handicap' => $player->handicap->value])->values()->all()),
                     player1Id: @js((string) ($selectedPlayer1?->id ?? '')),
                     opponentId: @js((string) ($selectedOpponent?->id ?? '')),
                     firstSearch: '',
@@ -286,7 +286,7 @@
             </div>
         @else
             <div class="p-8 text-center bg-[#202227] rounded-3xl border border-[#333741]">
-                <p class="text-sm text-[#888e9b]">{{ $activeUsers->count() < 2 ? 'Belum ada dua pemain aktif untuk dibandingkan.' : 'Pilih dua pemain berbeda untuk melihat riwayat pertemuan.' }}</p>
+                <p class="text-sm text-[#888e9b]">{{ $players->count() < 2 ? 'Belum ada dua pemain terdaftar untuk dibandingkan.' : 'Pilih dua pemain berbeda untuk melihat riwayat pertemuan.' }}</p>
             </div>
         @endif
 

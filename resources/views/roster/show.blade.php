@@ -38,7 +38,7 @@
                             HC {{ $member->handicap->value }}
                         </span>
                         <span class="px-2.5 py-1 rounded-lg text-xs font-semibold {{ $member->is_active ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-zinc-500/10 border border-zinc-500/20 text-[#959595]' }}">
-                            {{ $member->is_active ? 'Aktif' : 'Belum Aktif' }}
+                            {{ $member->is_active ? 'Akun Aktif' : 'Belum Aktivasi' }}
                         </span>
                     </div>
                     @if ($member->created_at)
@@ -46,7 +46,7 @@
                     @endif
                 </div>
 
-                @if ($member->is_active && $member->id !== auth()->id())
+                @if ($member->id !== auth()->id())
                     <a href="{{ route('head-to-head', ['opponent_id' => $member->id]) }}" class="px-4 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-xs font-bold transition shrink-0">
                         Lihat Head to Head
                     </a>

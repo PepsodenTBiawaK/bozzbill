@@ -27,9 +27,7 @@ class RosterController extends Controller
         $sort = $request->query('sort', 'win_rate');
         $search = $request->query('search', '');
 
-        // Fetch all active members
-        $membersQuery = User::where('role', UserRole::Member)
-            ->where('is_active', true);
+        $membersQuery = User::where('role', UserRole::Member);
 
         if ($search) {
             $membersQuery->where('name', 'like', "%{$search}%");
@@ -96,7 +94,7 @@ class RosterController extends Controller
             'podium' => $podium,
             'restRankings' => $restRankings,
             'rosterByHandicap' => $rosterByHandicap,
-            'totalActiveMembers' => $allMembers->count(),
+            'totalMembers' => $allMembers->count(),
         ]);
     }
 
@@ -106,7 +104,6 @@ class RosterController extends Controller
     public function show(User $user): View
     {
         abort_unless($user->isMember(), 404);
-        abort_unless($user->is_active || Auth::user()->isAdmin(), 404);
 
         $totalMatches = $user->totalMatchesCount();
         $wins = $user->totalWinsCount();

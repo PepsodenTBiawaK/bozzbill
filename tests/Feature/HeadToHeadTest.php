@@ -117,7 +117,7 @@ test('the same player cannot be selected on both sides', function () {
     $response->assertSessionHasErrors(['opponent_id' => 'Pemain pertama dan pemain kedua harus berbeda.']);
 });
 
-test('inactive players cannot be selected for a comparison', function (string $field) {
+test('unactivated players can be selected on either side of a comparison', function (string $field) {
     $member = User::where('phone', '081111111111')->firstOrFail();
     $inactive = User::where('is_active', false)->firstOrFail();
 
@@ -125,10 +125,9 @@ test('inactive players cannot be selected for a comparison', function (string $f
         $field => $inactive->id,
     ]));
 
-    $response->assertRedirect(route('head-to-head'));
-    $response->assertSessionHasErrors([$field => $field === 'player1_id'
-        ? 'Pemain pertama tidak ditemukan atau belum aktif.'
-        : 'Pemain kedua tidak ditemukan atau belum aktif.']);
+    $response->assertOk()->assertSessionHasNoErrors();
+    $response->assertViewHas($field === 'player1_id' ? 'selectedPlayer1' : 'selectedOpponent',
+        fn (User $player): bool => $player->is($inactive));
 })->with(['player1_id', 'opponent_id']);
 
 test('unknown and malformed player identifiers are rejected', function (mixed $identifier, string $message) {
@@ -139,7 +138,7 @@ test('unknown and malformed player identifiers are rejected', function (mixed $i
     $response->assertUnprocessable();
     $response->assertJsonValidationErrors(['opponent_id' => $message]);
 })->with([
-    'unknown player' => [999999, 'Pemain kedua tidak ditemukan atau belum aktif.'],
+    'unknown player' => [999999, 'Pemain kedua tidak ditemukan.'],
     'malformed identifier' => ['not-a-player', 'Pilih pemain kedua yang valid.'],
 ]);
 
@@ -159,13 +158,13 @@ test('a pair without any meetings shows a useful empty history', function () {
     $response->assertViewHas('h2h', fn (array $stats): bool => $stats['total_matches'] === 0);
 });
 
-test('a community with only one active player cannot create a comparison', function () {
+test('a community with only one activated account can still compare registered players', function () {
     $member = User::where('phone', '081111111111')->firstOrFail();
     User::where('id', '!=', $member->id)->update(['is_active' => false]);
 
     $response = $this->actingAs($member)->get(route('head-to-head'));
 
     $response->assertOk();
-    $response->assertSee('Belum ada dua pemain aktif untuk dibandingkan.');
-    $response->assertViewHas('selectedOpponent', null);
+    $response->assertViewHas('selectedOpponent', fn (User $player): bool => ! $player->is_active);
+    $response->assertViewHas('h2h', fn (array $stats): bool => $stats['total_matches'] > 0);
 });

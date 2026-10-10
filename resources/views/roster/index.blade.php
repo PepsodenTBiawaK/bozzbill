@@ -68,7 +68,7 @@
                 :class="tab === 'roster' ? 'bg-[#292c34] text-[#dea538] font-bold shadow' : 'text-[#888e9b] hover:text-white'"
                 class="flex-1 py-2.5 text-center rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer"
             >
-                Roster Anggota ({{ $totalActiveMembers }})
+                Roster Anggota ({{ $totalMembers }})
             </button>
         </div>
 
@@ -367,7 +367,7 @@
                                 </div>
                             @empty
                                 <div class="py-4 text-center text-xs text-[#888e9b]">
-                                    Belum ada member aktif di level HC {{ $tier }}.
+                                    Belum ada anggota di level HC {{ $tier }}.
                                 </div>
                             @endforelse
                         </div>
@@ -410,7 +410,7 @@
                     </div>
 
                     <p class="text-xs text-[#9ca3af] mb-5">
-                        Daftarkan nomor WhatsApp pemain. Pemain nantinya dapat langsung mengaktifkan akun dan membuat password mandiri di halaman Aktivasi Akun.
+                        Setelah didaftarkan, pemain langsung bisa dicatat dalam pertandingan. Pemain perlu mengaktifkan akun dan membuat password di halaman Aktivasi Akun untuk login.
                     </p>
 
                     <form method="POST" action="{{ route('members.store') }}" class="space-y-4">
