@@ -154,43 +154,15 @@
                     action="{{ route('profile.update') }}"
                     enctype="multipart/form-data"
                     class="space-y-4"
-                    x-data="{
-                        previewUrl: null,
-                        removeAvatar: @js((bool) old('remove_avatar', false)),
-                        hasAvatar: {{ $user->avatar ? 'true' : 'false' }},
-                        previewError: '',
-                        releasePreview() {
-                            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-                            this.previewUrl = null;
-                        },
-                        chooseAvatar(event) {
-                            this.releasePreview();
-                            this.previewError = '';
-                            const file = event.target.files[0];
-                            if (!file) return;
-                            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
-                                this.previewError = 'Pilih foto JPG, PNG, atau WebP dengan ukuran maksimal 2 MB.';
-                                event.target.value = '';
-                                return;
-                            }
-                            this.removeAvatar = false;
-                            this.previewUrl = URL.createObjectURL(file);
-                        },
-                        clearAvatar() {
-                            this.releasePreview();
-                            this.previewError = '';
-                            this.$refs.avatarInput.value = '';
-                            this.removeAvatar = true;
-                        },
-                        destroy() { this.releasePreview(); }
-                    }"
+                    x-data="avatarEditor(@js((bool) $user->avatar), @js((bool) old('remove_avatar', false)))"
+                    @submit="guardSubmit($event)"
                 >
                     @csrf
                     @method('PUT')
 
                     <input type="hidden" name="remove_avatar" :value="removeAvatar ? '1' : '0'" value="{{ (bool) old('remove_avatar', false) ? '1' : '0' }}" />
                     <div>
-                        <label for="avatar" class="block text-xs font-medium text-[#d4d4d4] mb-2">Foto Profil</label>
+                        <label for="avatar-picker" class="block text-xs font-medium text-[#d4d4d4] mb-2">Foto Profil</label>
                         <div class="flex items-center gap-4">
                             <div class="w-16 h-16 rounded-full bg-[#16171a] border-2 border-[#dea538]/60 text-[#dea538] text-xl font-bold flex items-center justify-center shrink-0 overflow-hidden">
                                 <template x-if="previewUrl">
@@ -202,10 +174,43 @@
                                 <span x-show="!previewUrl && removeAvatar" style="{{ (bool) old('remove_avatar', false) ? '' : 'display: none;' }}">{{ $user->initials }}</span>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <label for="avatar" class="inline-flex items-center px-3 py-2 rounded-xl bg-[#252830] hover:bg-[#2f333e] border border-[#383d4a] text-white text-xs font-semibold cursor-pointer transition">Pilih Foto</label>
-                                <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp" x-ref="avatarInput" @change="chooseAvatar($event)" class="sr-only" />
+                                <label for="avatar-picker" class="inline-flex items-center px-3 py-2 rounded-xl bg-[#252830] hover:bg-[#2f333e] border border-[#383d4a] text-white text-xs font-semibold cursor-pointer transition">Pilih Foto</label>
+                                <input type="file" id="avatar-picker" accept="image/jpeg,image/png,image/webp" @change="chooseAvatar($event)" :disabled="exporting" class="sr-only" />
+                                <input type="file" name="avatar" x-ref="avatarInput" class="hidden" aria-hidden="true" tabindex="-1" />
                                 <button type="button" @click="clearAvatar()" x-show="(hasAvatar || previewUrl) && !removeAvatar" style="{{ ! $user->avatar || (bool) old('remove_avatar', false) ? 'display: none;' : '' }}" class="text-xs text-rose-400 hover:text-rose-300 font-medium ml-3 cursor-pointer">Hapus Foto</button>
                                 <p class="text-[11px] text-[#787e8c] mt-2">JPG, PNG, atau WebP. Maksimal 2 MB.</p>
+                                <button type="button" @click="editCrop()" x-show="sourceApplied && !editing" style="display: none;" class="text-xs font-semibold text-[#dea538] hover:underline mt-2 cursor-pointer">Atur Posisi</button>
+                            </div>
+                        </div>
+                        <p x-show="loading" style="display: none;" role="status" class="text-xs text-[#959595] mt-3">Menyiapkan foto…</p>
+                        <div x-show="editing" style="display: none;" class="mt-4 p-4 rounded-2xl bg-[#16171a] border border-[#333741] space-y-4">
+                            <div>
+                                <h4 class="text-sm font-bold text-white">Atur Posisi Foto</h4>
+                                <p id="avatar-crop-help" class="text-xs text-[#888e9b] mt-1">Geser foto dan atur zoom. Bagian di dalam lingkaran akan tampil sebagai foto profil.</p>
+                            </div>
+                            <div
+                                tabindex="0" role="group" aria-label="Posisi foto profil. Gunakan tombol panah untuk menggeser."
+                                aria-describedby="avatar-crop-help"
+                                @pointerdown.prevent="startDrag($event)" @pointermove="drag($event)"
+                                @pointerup="endDrag($event)" @pointercancel="endDrag($event)" @lostpointercapture="endDrag($event)"
+                                @keydown.arrow-left.prevent="movePhoto(-0.025, 0)" @keydown.arrow-right.prevent="movePhoto(0.025, 0)"
+                                @keydown.arrow-up.prevent="movePhoto(0, -0.025)" @keydown.arrow-down.prevent="movePhoto(0, 0.025)"
+                                class="relative w-full max-w-56 aspect-square mx-auto rounded-full overflow-hidden ring-2 ring-[#dea538]/60 bg-[#202227] touch-none select-none cursor-grab active:cursor-grabbing focus:outline-none focus:ring-[#dea538]"
+                            >
+                                <template x-if="sourceUrl && editing">
+                                    <img :src="sourceUrl" :style="imageStyle()" draggable="false" alt="Pratinjau posisi foto" class="absolute max-w-none pointer-events-none select-none" />
+                                </template>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between gap-2 mb-2">
+                                    <label for="avatar-zoom" class="text-xs font-semibold text-[#d4d4d4]">Zoom</label>
+                                    <button type="button" @click="resetCrop()" :disabled="exporting" class="text-xs text-[#dea538] hover:underline cursor-pointer">Posisi Awal</button>
+                                </div>
+                                <input id="avatar-zoom" type="range" min="1" max="3" step="0.01" :value="zoom" @input="setZoom($event.target.value)" :disabled="exporting" class="w-full h-8 accent-[#dea538] cursor-pointer" />
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="cancelCrop()" class="flex-1 min-h-11 rounded-xl border border-[#383d4a] text-xs font-semibold text-[#d4d4d4] hover:bg-[#252830] cursor-pointer">Batal</button>
+                                <button type="button" @click="applyCrop()" :disabled="exporting" x-text="exporting ? 'Memproses…' : 'Gunakan Foto'" class="flex-1 min-h-11 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-xs font-bold text-[#141518] disabled:opacity-50 cursor-pointer">Gunakan Foto</button>
                             </div>
                         </div>
                         <p x-show="previewError" x-text="previewError" role="alert" class="text-xs text-rose-400 mt-2"></p>
@@ -239,7 +244,8 @@
 
                     <button 
                         type="submit" 
-                        class="w-full mt-2 bg-[#dea538] hover:bg-[#c8912c] text-[#141518] font-bold py-2.5 rounded-xl text-sm transition cursor-pointer"
+                        :disabled="editing || loading || exporting"
+                        class="w-full mt-2 bg-[#dea538] hover:bg-[#c8912c] text-[#141518] font-bold py-2.5 rounded-xl text-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         Simpan Profil
                     </button>

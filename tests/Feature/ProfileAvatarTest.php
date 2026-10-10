@@ -345,6 +345,9 @@ test('the own profile offers photo settings initials fallback and drilling acces
         ->assertSee('PL')
         ->assertSee('enctype="multipart/form-data"', false)
         ->assertSee('name="avatar"', false)
+        ->assertSee('Atur Posisi Foto')
+        ->assertSee('Gunakan Foto')
+        ->assertSee('id="avatar-zoom"', false)
         ->assertSee('href="'.route('drilling').'"', false)
         ->assertDontSee('alt="Foto profil Pemain Lokal"', false);
     expect(Storage::disk('public')->allFiles())->toBeEmpty();
