@@ -1,0 +1,140 @@
+name: Deploy BozzBill
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bozzbill-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check deployment configuration
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for variable in VPS_HOST VPS_USERNAME VPS_SSH_KEY VPS_KNOWN_HOSTS; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Add the repository Actions secret ${variable} before deploying."
+              exit 1
+            fi
+          done
+
+      - name: Check out application
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, pdo_sqlite, bcmath, gd, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Test application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+          php artisan test --compact
+
+      - name: Prepare production dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-progress
+          composer check-platform-reqs --no-dev
+
+      - name: Package release
+        run: |
+          set -euo pipefail
+          release_directory="$RUNNER_TEMP/bozzbill-release"
+          archive_name="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          mkdir -p "$release_directory/public" "$release_directory/bootstrap/cache"
+          rsync -a --exclude=database.sqlite \
+            app bootstrap config database resources routes vendor artisan composer.json composer.lock \
+            "$release_directory/"
+          rsync -a --exclude=/storage --exclude=/hot --exclude=/fonts-manifest.dev.json \
+            public/ "$release_directory/public/"
+          find "$release_directory/bootstrap/cache" -mindepth 1 -maxdepth 1 -type f -delete
+          printf '%s\n' "$GITHUB_SHA" > "$release_directory/.release-sha"
+          tar -czf "$RUNNER_TEMP/$archive_name" -C "$release_directory" .
+          echo "DEPLOY_ARCHIVE=$RUNNER_TEMP/$archive_name" >> "$GITHUB_ENV"
+          echo "DEPLOY_ARCHIVE_NAME=$archive_name" >> "$GITHUB_ENV"
+
+      - name: Upload and deploy release
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          VPS_PORT="${VPS_PORT:-22}"
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]] || { echo '::error::Invalid VPS_HOST.'; exit 1; }
+          [[ "$VPS_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo '::error::Invalid VPS_USERNAME.'; exit 1; }
+          [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]] && (( 10#$VPS_PORT >= 1 && 10#$VPS_PORT <= 65535 )) || { echo '::error::Invalid VPS_PORT.'; exit 1; }
+
+          ssh_directory="$RUNNER_TEMP/bozzbill-ssh"
+          mkdir -p "$ssh_directory"
+          chmod 700 "$ssh_directory"
+          key_path="$ssh_directory/deploy_key"
+          known_hosts_path="$ssh_directory/known_hosts"
+          trap 'rm -f -- "$key_path" "$known_hosts_path"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$key_path"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$known_hosts_path"
+          chmod 600 "$key_path" "$known_hosts_path"
+
+          host_lookup="$VPS_HOST"
+          if [[ "$VPS_PORT" != '22' ]]; then
+            host_lookup="[$VPS_HOST]:$VPS_PORT"
+          fi
+          if ! ssh-keygen -F "$host_lookup" -f "$known_hosts_path" > /dev/null; then
+            echo '::error::VPS_KNOWN_HOSTS does not contain the trusted server host key.'
+            exit 1
+          fi
+
+          ssh_options=(
+            -i "$key_path"
+            -o "Port=$VPS_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=$known_hosts_path"
+            -o ConnectTimeout=15
+            -o ConnectionAttempts=1
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=3
+          )
+          remote_archive="/var/www/bozzbill/incoming/$DEPLOY_ARCHIVE_NAME"
+          scp -O "${ssh_options[@]}" "$DEPLOY_ARCHIVE" "$VPS_USERNAME@$VPS_HOST:$remote_archive"
+          ssh "${ssh_options[@]}" "$VPS_USERNAME@$VPS_HOST" \
+            "bash /var/www/bozzbill/deploy.sh $remote_archive $GITHUB_SHA"
