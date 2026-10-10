@@ -126,9 +126,9 @@
             </div>
 
             @if ($sort === 'most_podium')
-                <p class="text-xs text-[#888e9b] px-1">
+                <!-- <p class="text-xs text-[#888e9b] px-1">
                     Total Juara 1–3 dari Fun Game yang selesai, termasuk double. Jika sama, jumlah Juara 1 lalu Juara 2 menentukan urutan.
-                </p>
+                </p> -->
             @endif
 
             <!-- Podium Top 3 Players Card (Figma Node 189:5305) -->
