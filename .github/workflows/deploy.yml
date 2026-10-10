@@ -131,7 +131,7 @@ jobs:
             -o StrictHostKeyChecking=yes
             -o "UserKnownHostsFile=$known_hosts_path"
             -o ConnectTimeout=15
-            -o ConnectionAttempts=1
+            -o ConnectionAttempts=3
             -o ServerAliveInterval=15
             -o ServerAliveCountMax=3
           )
