@@ -121,8 +121,8 @@
         <div 
             x-data="{
                 drillName: '{{ old('drill_name', '') }}',
-                success: {{ old('success_count', 8) }},
-                fail: {{ old('fail_count', 2) }},
+                success: {{ old('success_count', 0) }},
+                fail: {{ old('fail_count', 0) }},
                 notes: '{{ old('notes', '') }}',
                 
                 get totalAttempts() {
@@ -134,10 +134,10 @@
                     return Math.round((this.success / this.totalAttempts) * 100);
                 },
 
-                setPreset(name, s, f) {
+                setPreset(name) {
                     this.drillName = name;
-                    this.success = s;
-                    this.fail = f;
+                    this.success = 0;
+                    this.fail = 0;
                 }
             }"
             class="bg-[#202227] border border-[#333741] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl"
@@ -178,28 +178,28 @@
                     <div class="flex flex-wrap gap-2 mt-2.5">
                         <button 
                             type="button" 
-                            @click="setPreset('Stop Shot 10x Corner Pocket', 8, 2)"
+                            @click="setPreset('Stop Shot 10x Corner Pocket')"
                             class="px-2.5 py-1 rounded-lg bg-[#151619] hover:bg-[#282a32] border border-[#333741] text-[11px] text-[#d4d4d4] transition cursor-pointer"
                         >
                             + Stop Shot 10x
                         </button>
                         <button 
                             type="button" 
-                            @click="setPreset('Cut Shot 45° Angle', 7, 3)"
+                            @click="setPreset('Cut Shot 45° Angle')"
                             class="px-2.5 py-1 rounded-lg bg-[#151619] hover:bg-[#282a32] border border-[#333741] text-[11px] text-[#d4d4d4] transition cursor-pointer"
                         >
                             + Cut Shot 45°
                         </button>
                         <button 
                             type="button" 
-                            @click="setPreset('Draw Shot Stun Ball Control', 9, 1)"
+                            @click="setPreset('Draw Shot Stun Ball Control')"
                             class="px-2.5 py-1 rounded-lg bg-[#151619] hover:bg-[#282a32] border border-[#333741] text-[11px] text-[#d4d4d4] transition cursor-pointer"
                         >
                             + Draw Shot Control
                         </button>
                         <button 
                             type="button" 
-                            @click="setPreset('Straight Long Potting Drill', 6, 4)"
+                            @click="setPreset('Straight Long Potting Drill')"
                             class="px-2.5 py-1 rounded-lg bg-[#151619] hover:bg-[#282a32] border border-[#333741] text-[11px] text-[#d4d4d4] transition cursor-pointer"
                         >
                             + Long Potting

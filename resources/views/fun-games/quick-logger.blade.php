@@ -3,7 +3,7 @@
         x-data="{
             p1Id: @js((string) old('player1_id', '')),
             p2Id: @js((string) old('player2_id', '')),
-            p1Score: @js((int) old('player1_score', 3)),
+            p1Score: @js((int) old('player1_score', 0)),
             p2Score: @js((int) old('player2_score', 0)),
             winnerId: @js((string) old('winner_id', '')),
             stage: 'Penyisihan',
