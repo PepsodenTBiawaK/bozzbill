@@ -176,10 +176,11 @@
                         </div>
 
                         <!-- Score Display -->
-                        <div class="flex items-center justify-end gap-3 shrink-0">
+                        <div class="flex flex-col items-end gap-2 sm:max-w-xs">
                             <div class="px-3.5 py-1.5 rounded-xl bg-[#202227] border border-[#333741] text-base font-black text-white">
                                 <x-match-score :match="$match" />
                             </div>
+                            <x-match-actions :event="$funGame" :match="$match" />
                         </div>
 
                     </div>

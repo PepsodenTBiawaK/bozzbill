@@ -37,51 +37,42 @@
             <form
                 method="GET"
                 action="{{ route('head-to-head') }}"
-                x-data="{
-                    players: @js($players->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name, 'handicap' => $player->handicap->value])->values()->all()),
-                    player1Id: @js((string) ($selectedPlayer1?->id ?? '')),
-                    opponentId: @js((string) ($selectedOpponent?->id ?? '')),
-                    firstSearch: '',
-                    secondSearch: '',
-                    matchingPlayers(search, selectedId) {
-                        const query = search.trim().toLocaleLowerCase();
-                        return this.players.filter(player => player.id === selectedId || player.name.toLocaleLowerCase().includes(query) || player.handicap.toLocaleLowerCase().includes(query));
-                    },
-                    swapPlayers() {
-                        const firstPlayerId = this.player1Id;
-                        this.player1Id = this.opponentId;
-                        this.opponentId = firstPlayerId;
-                        this.firstSearch = '';
-                        this.secondSearch = '';
-                    }
-                }"
+                x-data="headToHeadPicker(@js($players->map(fn ($player) => ['id' => (string) $player->id, 'name' => $player->name, 'handicap' => $player->handicap->value])->values()->all()), @js((string) ($selectedPlayer1?->id ?? '')), @js((string) ($selectedOpponent?->id ?? '')))"
+                x-on:submit="if (!canCompare) $event.preventDefault()"
                 class="bg-[#202227] border border-[#333741] rounded-2xl p-4 sm:p-5 shadow-md space-y-4"
             >
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <label for="player1_select" class="text-xs text-[#d4d4d4] font-semibold">Pemain 1</label>
-                        <input type="search" x-model="firstSearch" aria-label="Cari pemain pertama" placeholder="Cari nama atau HC" class="w-full bg-[#151619] border border-[#333741] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538]" />
-                        <select id="player1_select" name="player1_id" x-model="player1Id" required class="w-full min-h-11 bg-[#151619] border border-[#333741] text-white text-sm font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538] cursor-pointer">
-                            <option value="">Pilih pemain pertama</option>
-                            <template x-for="player in matchingPlayers(firstSearch, player1Id)" :key="player.id">
-                                <option :value="player.id" :selected="player.id === player1Id" :disabled="player.id === opponentId" x-text="`${player.name} (HC ${player.handicap})`"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="space-y-2">
-                        <label for="opponent_select" class="text-xs text-[#d4d4d4] font-semibold">Pemain 2</label>
-                        <input type="search" x-model="secondSearch" aria-label="Cari pemain kedua" placeholder="Cari nama atau HC" class="w-full bg-[#151619] border border-[#333741] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538]" />
-                        <select id="opponent_select" name="opponent_id" x-model="opponentId" required class="w-full min-h-11 bg-[#151619] border border-[#333741] text-white text-sm font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538] cursor-pointer">
-                            <option value="">Pilih pemain kedua</option>
-                            <template x-for="player in matchingPlayers(secondSearch, opponentId)" :key="player.id">
-                                <option :value="player.id" :selected="player.id === opponentId" :disabled="player.id === player1Id" x-text="`${player.name} (HC ${player.handicap})`"></option>
-                            </template>
-                        </select>
-                    </div>
+                    @foreach (['first' => ['Pemain 1', 'player1_id'], 'second' => ['Pemain 2', 'opponent_id']] as $side => [$label, $field])
+                        <div class="relative space-y-2" x-on:click.outside="{{ $side }}.open = false">
+                            <label for="{{ $side }}-search" class="block text-xs text-[#d4d4d4] font-semibold">{{ $label }}</label>
+                            <input type="hidden" name="{{ $field }}" :value="{{ $side }}.id" />
+                            <input id="{{ $side }}-search" type="text" x-model="{{ $side }}.query"
+                                x-on:input="search('{{ $side }}')" x-on:focus="{{ $side }}.open = true"
+                                x-on:keydown.down.prevent="move('{{ $side }}', 1); $nextTick(() => $refs.{{ $side }}List.querySelectorAll('[role=option]')[{{ $side }}.active]?.scrollIntoView({ block: 'nearest' }))"
+                                x-on:keydown.up.prevent="move('{{ $side }}', -1); $nextTick(() => $refs.{{ $side }}List.querySelectorAll('[role=option]')[{{ $side }}.active]?.scrollIntoView({ block: 'nearest' }))"
+                                x-on:keydown.enter.prevent="chooseActive('{{ $side }}')" x-on:keydown.escape.prevent="{{ $side }}.open = false" x-on:keydown.tab="{{ $side }}.open = false"
+                                role="combobox" aria-autocomplete="list" aria-controls="{{ $side }}-options" :aria-expanded="{{ $side }}.open"
+                                :aria-activedescendant="{{ $side }}.open && {{ $side }}.active >= 0 ? '{{ $side }}-option-' + options('{{ $side }}')[{{ $side }}.active]?.id : null"
+                                autocomplete="off" placeholder="Ketik nama atau HC pemain" required
+                                class="w-full min-h-11 bg-[#151619] border border-[#333741] text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#dea538]" />
+                            <div id="{{ $side }}-options" x-ref="{{ $side }}List" x-show="{{ $side }}.open" x-cloak role="listbox" aria-label="Hasil pencarian {{ $label }}" class="absolute z-30 top-full left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-[#383d4a] bg-[#202227] shadow-xl p-1">
+                                <template x-for="(player, index) in options('{{ $side }}')" :key="player.id">
+                                    <button type="button" role="option" :id="'{{ $side }}-option-' + player.id" :data-option-index="index" :aria-selected="player.id === {{ $side }}.id" tabindex="-1"
+                                        x-on:mousedown.prevent x-on:click="choose('{{ $side }}', player)"
+                                        class="w-full min-h-11 px-3 py-2 rounded-lg flex items-center justify-between gap-3 text-left text-sm text-white hover:bg-[#dea538]/10 cursor-pointer"
+                                        :class="{ 'bg-[#dea538]/10': index === {{ $side }}.active }">
+                                        <span class="min-w-0 break-words" x-text="player.name"></span>
+                                        <span class="shrink-0 text-xs font-semibold text-[#dea538]" x-text="'HC ' + player.handicap"></span>
+                                    </button>
+                                </template>
+                                <p x-show="options('{{ $side }}').length === 0" class="px-3 py-3 text-xs text-[#959595]">Nama pemain tidak ditemukan.</p>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <button type="submit" :disabled="!player1Id || !opponentId || player1Id === opponentId" class="min-h-11 px-5 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Bandingkan Pemain</button>
-                    <button type="button" @click="swapPlayers()" :disabled="!player1Id || !opponentId || player1Id === opponentId" class="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-[#151619] border border-[#333741] text-[#d4d4d4] text-sm font-semibold hover:text-white transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Tukar Posisi</button>
+                    <button type="submit" :disabled="!canCompare" class="min-h-11 px-5 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Bandingkan Pemain</button>
+                    <button type="button" x-on:click="swapPlayers()" :disabled="!canCompare" class="min-h-11 inline-flex items-center px-4 py-2.5 rounded-xl bg-[#151619] border border-[#333741] text-[#d4d4d4] text-sm font-semibold hover:text-white transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">Tukar Posisi</button>
                 </div>
             </form>
         @endif

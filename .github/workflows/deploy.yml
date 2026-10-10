@@ -66,6 +66,7 @@ jobs:
           cp .env.example .env
           php artisan key:generate --no-interaction
           php artisan test --compact
+          npm test
 
       - name: Prepare production dependencies
         run: |

@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->name('roster.reset-password');
     Route::put('/roster/{user}/phone', [RosterController::class, 'updatePhone'])->name('roster.phone');
     Route::put('/roster/{user}/role', [RosterController::class, 'updateRole'])->name('roster.role');
+    Route::put('/roster/{user}/handicap', [RosterController::class, 'updateHandicap'])->name('roster.handicap');
 
     // Modul Fun Game & Match Logger
     Route::get('/fun-games', [FunGameController::class, 'index'])->name('fun-games.index');
@@ -57,5 +58,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/fun-games', [FunGameController::class, 'store'])->name('fun-games.store');
     Route::get('/fun-games/{funGame}', [FunGameController::class, 'show'])->name('fun-games.show');
     Route::post('/fun-games/{funGame}/matches', [FunGameController::class, 'storeMatch'])->name('fun-games.matches.store');
+    Route::get('/fun-games/{funGame}/matches/{match}/edit', [FunGameController::class, 'editMatch'])->scopeBindings()->name('fun-games.matches.edit');
+    Route::put('/fun-games/{funGame}/matches/{match}', [FunGameController::class, 'updateMatch'])->scopeBindings()->name('fun-games.matches.update');
+    Route::delete('/fun-games/{funGame}/matches/{match}', [FunGameController::class, 'destroyMatch'])->scopeBindings()->name('fun-games.matches.destroy');
     Route::post('/fun-games/{funGame}/close', [FunGameController::class, 'closeEvent'])->name('fun-games.close');
 });

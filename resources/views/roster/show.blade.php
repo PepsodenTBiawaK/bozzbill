@@ -191,6 +191,30 @@
             </section>
         @endif
 
+        @if (auth()->user()?->isAdmin())
+            <section class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-white">Atur HC Pemain</h2>
+                <p class="text-xs text-[#959595] mt-1">Perubahan dicatat di riwayat HC. HC pada match sebelumnya tetap mengikuti saat pertandingan dicatat.</p>
+                <form method="POST" action="{{ route('roster.handicap', $member) }}" class="mt-4 space-y-3">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <label for="member-handicap" class="block text-xs font-semibold text-[#d4d4d4] mb-1.5">Level HC</label>
+                        <select id="member-handicap" name="handicap" required class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none">
+                            @foreach (\App\Enums\Handicap::cases() as $handicap)
+                                <option value="{{ $handicap->value }}" @selected(old('handicap', $member->handicap->value) === $handicap->value)>{{ $handicap->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="handicap-reason" class="block text-xs font-semibold text-[#d4d4d4] mb-1.5">Alasan perubahan</label>
+                        <textarea id="handicap-reason" name="reason" required maxlength="500" rows="2" placeholder="Catatan evaluasi atau koreksi HC" class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none">{{ old('reason') }}</textarea>
+                    </div>
+                    <button type="submit" class="min-h-11 px-4 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-xs font-bold cursor-pointer">Simpan HC</button>
+                </form>
+            </section>
+        @endif
+
         @if (auth()->user()?->isSuperadmin() && ! $member->isSuperadmin())
             <section class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl">
                 <h2 class="text-lg font-bold text-white">Jabatan Akun</h2>

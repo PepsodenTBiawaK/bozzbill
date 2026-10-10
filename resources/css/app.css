@@ -5,6 +5,10 @@
 @source '../../storage/framework/views/*.php';
 @source '../views/**/*.blade.php';
 
+[x-cloak] {
+    display: none !important;
+}
+
 @theme {
     --font-sans: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 

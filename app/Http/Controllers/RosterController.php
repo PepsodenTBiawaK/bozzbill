@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Handicap;
 use App\Enums\UserRole;
+use App\Models\HcHistory;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -203,6 +204,46 @@ class RosterController extends Controller
         return redirect()
             ->route('roster', ['tab' => 'roster'])
             ->with('status_success', "Calon member '{$newMember->name}' ({$newMember->phone}) berhasil didaftarkan dengan HC {$newMember->handicap->value}! Member dapat langsung melakukan Aktivasi Akun.");
+    }
+
+    public function updateHandicap(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'handicap' => ['required', Rule::enum(Handicap::class)],
+            'reason' => ['required', 'string', 'max:500'],
+        ], [
+            'handicap.required' => 'Pilih HC pemain.',
+            'handicap.enum' => 'Pilih level HC yang tersedia.',
+            'reason.required' => 'Alasan perubahan HC wajib diisi.',
+        ]);
+
+        $changed = DB::transaction(function () use ($request, $user, $validated): bool {
+            $target = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $newHandicap = Handicap::from($validated['handicap']);
+
+            if ($target->handicap === $newHandicap) {
+                return false;
+            }
+
+            HcHistory::create([
+                'user_id' => $target->id,
+                'old_hc' => $target->handicap,
+                'new_hc' => $newHandicap,
+                'reason' => $validated['reason'],
+                'changed_by' => $request->user()->id,
+                'approved_at' => now(),
+            ]);
+            $target->update(['handicap' => $newHandicap]);
+
+            return true;
+        });
+
+        return redirect()->route('roster.show', $user)->with('status_success', $changed
+            ? 'HC pemain berhasil diperbarui dan dicatat dalam riwayat. HC pada match sebelumnya tetap tersimpan.'
+            : 'HC pemain sudah sesuai. Tidak ada perubahan.');
     }
 
     public function updatePhone(Request $request, User $user): RedirectResponse

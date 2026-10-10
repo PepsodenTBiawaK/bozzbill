@@ -17,6 +17,20 @@ test('guests visiting head to head page are redirected to login', function () {
     $response->assertRedirect(route('login'));
 });
 
+test('both player fields offer a searchable combobox instead of a separate native dropdown', function () {
+    $member = User::where('phone', '081111111111')->firstOrFail();
+    $response = $this->actingAs($member)->get(route('head-to-head'))->assertOk();
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $xpath = new DOMXPath($document);
+
+    expect(substr_count($response->getContent(), 'role="combobox"'))->toBe(2);
+    expect($xpath->query('//input[@role="combobox"]')->length)->toBe(2);
+    expect($xpath->query('//select[@name="player1_id" or @name="opponent_id"]')->length)->toBe(0);
+    expect($xpath->query('//input[@type="hidden" and (@name="player1_id" or @name="opponent_id")]')->length)->toBe(2);
+    expect($xpath->query('//input[@id="first-search"]')->item(0)->getAttribute('x-on:keydown.down.prevent'))->toContain('scrollIntoView');
+});
+
 test('authenticated member can view head to head page with accurate duel stats', function () {
     $aprPinky = User::where('phone', '081111111111')->first();
     $pedong = User::where('phone', '082222222222')->first();

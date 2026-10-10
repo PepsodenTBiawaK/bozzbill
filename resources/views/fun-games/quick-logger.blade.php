@@ -269,7 +269,7 @@
 
             <div class="space-y-2.5">
                 @forelse ($recentMatches as $m)
-                    <div class="p-3.5 rounded-2xl bg-[#16171a] border border-[#2e313a] flex items-center justify-between gap-3">
+                    <div class="p-3.5 rounded-2xl bg-[#16171a] border border-[#2e313a] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="w-7 h-7 rounded-full bg-[#202227] border border-[#383838] flex items-center justify-center text-[10px] font-bold text-[#dea538] shrink-0">
                                 {{ $loop->iteration }}
@@ -288,10 +288,11 @@
                             </div>
                         </div>
 
-                        <div class="text-right shrink-0">
+                        <div class="text-right space-y-2 sm:max-w-xs">
                             <span class="text-sm font-black text-white bg-[#202227] px-2.5 py-1 rounded-lg border border-[#333741]">
                                 <x-match-score :match="$m" />
                             </span>
+                            <x-match-actions :event="$event" :match="$m" />
                         </div>
                     </div>
                 @empty
