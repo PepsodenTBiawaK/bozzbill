@@ -105,11 +105,13 @@ chmod g+w -- "$release_directory/bootstrap/cache"
 
 cd -- "$release_directory"
 printf 'Preparing release %s\n' "$release_id"
+umask 0007
 php artisan package:discover --no-interaction
 php artisan migrate --force --no-interaction
 php artisan db:seed --class=ProductionSeeder --force --no-interaction
 php artisan storage:link --no-interaction
 php artisan optimize --no-interaction
+umask 0027
 
 ln -s -- "$release_directory" "$temporary_link"
 mv -Tf -- "$temporary_link" "$CURRENT_LINK"
