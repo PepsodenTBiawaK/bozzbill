@@ -217,6 +217,7 @@
                         @csrf
 
                         <!-- Juara 1 -->
+                        <p class="text-xs text-[#888e9b]">Juara 1 wajib diisi. Juara 2 dan 3 boleh dikosongkan.</p>
                         <div>
                             <x-player-picker :players="$members" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
                         </div>

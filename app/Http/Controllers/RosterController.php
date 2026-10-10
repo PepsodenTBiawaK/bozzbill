@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FunGameStatus;
 use App\Enums\Handicap;
 use App\Enums\UserRole;
+use App\Models\FunGame;
 use App\Models\HcHistory;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +26,10 @@ class RosterController extends Controller
     public function index(Request $request): View
     {
         $tab = $request->query('tab', 'leaderboard');
-        $sort = $request->query('sort', 'win_rate');
+        $sort = $request->query('sort', 'most_podium');
+        if (! in_array($sort, ['most_podium', 'win_rate', 'most_active', 'most_drills'], true)) {
+            $sort = 'most_podium';
+        }
         $search = $request->query('search', '');
 
         $membersQuery = User::query();
@@ -34,13 +39,15 @@ class RosterController extends Controller
         }
 
         $allMembers = $membersQuery->get();
+        $podiumCounts = $this->podiumCounts();
 
         // 1. Compute stats for each member
-        $rankedMembers = $allMembers->map(function (User $m): array {
+        $rankedMembers = $allMembers->map(function (User $m) use ($podiumCounts): array {
             $totalMatches = $m->totalMatchesCount();
             $wins = $m->totalWinsCount();
             $winRate = $m->winRatePercentage();
             $drillsCount = $m->playerDrills()->count();
+            $placements = $podiumCounts[$m->id] ?? [1 => 0, 2 => 0, 3 => 0];
 
             return [
                 'user' => $m,
@@ -48,6 +55,10 @@ class RosterController extends Controller
                 'wins' => $wins,
                 'win_rate' => $winRate,
                 'drills_count' => $drillsCount,
+                'podium_count' => array_sum($placements),
+                'champion_count' => $placements[1],
+                'runner_up_count' => $placements[2],
+                'third_place_count' => $placements[3],
             ];
         });
 
@@ -55,7 +66,14 @@ class RosterController extends Controller
         $sortedRankings = match ($sort) {
             'most_active' => $rankedMembers->sortByDesc('total_matches')->values(),
             'most_drills' => $rankedMembers->sortByDesc('drills_count')->values(),
-            default => $rankedMembers->sortByDesc('win_rate')->values(),
+            'win_rate' => $rankedMembers->sortByDesc('win_rate')->values(),
+            default => $rankedMembers->sortBy([
+                ['podium_count', 'desc'],
+                ['champion_count', 'desc'],
+                ['runner_up_count', 'desc'],
+                ['user.name', 'asc'],
+                ['user.id', 'asc'],
+            ])->values(),
         };
 
         // Top 3 for Podium
@@ -97,6 +115,40 @@ class RosterController extends Controller
             'rosterByHandicap' => $rosterByHandicap,
             'totalMembers' => $allMembers->count(),
         ]);
+    }
+
+    /**
+     * Count each player's recorded placement once per completed event, including doubles.
+     *
+     * @return array<int, array{1: int, 2: int, 3: int}>
+     */
+    private function podiumCounts(): array
+    {
+        $counts = [];
+        $events = FunGame::query()->where('status', FunGameStatus::Completed)
+            ->with('podiumPlayers:id')
+            ->get(['id', 'champion_id', 'runner_up_id', 'third_place_id']);
+
+        foreach ($events as $event) {
+            $placements = [];
+            foreach ([1 => $event->champion_id, 2 => $event->runner_up_id, 3 => $event->third_place_id] as $position => $playerId) {
+                if ($playerId) {
+                    $placements[$playerId] = min($placements[$playerId] ?? $position, $position);
+                }
+            }
+            foreach ($event->podiumPlayers as $player) {
+                $position = (int) $player->pivot->position;
+                if (in_array($position, [1, 2, 3], true)) {
+                    $placements[$player->id] = min($placements[$player->id] ?? $position, $position);
+                }
+            }
+            foreach ($placements as $playerId => $position) {
+                $counts[$playerId] ??= [1 => 0, 2 => 0, 3 => 0];
+                $counts[$playerId][$position]++;
+            }
+        }
+
+        return $counts;
     }
 
     /**

@@ -77,6 +77,17 @@
             
             <!-- Filter Chips (Figma Node 189:5295) -->
             <div class="flex flex-wrap items-center gap-2">
+                <a
+                    href="{{ route('roster', ['tab' => 'leaderboard', 'sort' => 'most_podium']) }}"
+                    class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 {{ $sort === 'most_podium' ? 'bg-[#292c34] text-[#dea538] border border-[#dea538]' : 'bg-[#191a1e] text-[#888e9b] hover:text-white border border-[#2f323a]' }}"
+                >
+                    @if ($sort === 'most_podium')
+                        <svg class="w-3.5 h-3.5 text-[#dea538]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                        </svg>
+                    @endif
+                    <span>Podium Terbanyak</span>
+                </a>
                 <a 
                     href="{{ route('roster', ['tab' => 'leaderboard', 'sort' => 'win_rate']) }}" 
                     class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 {{ $sort === 'win_rate' ? 'bg-[#292c34] text-[#dea538] border border-[#dea538]' : 'bg-[#191a1e] text-[#888e9b] hover:text-white border border-[#2f323a]' }}"
@@ -114,6 +125,12 @@
                 </a>
             </div>
 
+            @if ($sort === 'most_podium')
+                <p class="text-xs text-[#888e9b] px-1">
+                    Total Juara 1–3 dari Fun Game yang selesai, termasuk double. Jika sama, jumlah Juara 1 lalu Juara 2 menentukan urutan.
+                </p>
+            @endif
+
             <!-- Podium Top 3 Players Card (Figma Node 189:5305) -->
             <div class="bg-[#202227] border border-[#333741] rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
                 
@@ -133,7 +150,9 @@
                                 {{ $p2['user']->name }}
                             </h3>
                             <p class="text-[11px] sm:text-xs text-[#9aa0a6] font-semibold mt-0.5">
-                                @if ($sort === 'most_active')
+                                @if ($sort === 'most_podium')
+                                    {{ $p2['podium_count'] }}&times; Podium
+                                @elseif ($sort === 'most_active')
                                     {{ $p2['total_matches'] }} Match
                                 @elseif ($sort === 'most_drills')
                                     {{ $p2['drills_count'] }}x Drill
@@ -141,6 +160,13 @@
                                     Win Rate {{ $p2['win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'most_podium')
+                                <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p2['user']->name }}">
+                                    <span class="text-[#dea538]" title="Juara 1">J1 {{ $p2['champion_count'] }}</span>
+                                    <span class="text-[#9aa0a6]" title="Juara 2">J2 {{ $p2['runner_up_count'] }}</span>
+                                    <span class="text-[#c88d4b]" title="Juara 3">J3 {{ $p2['third_place_count'] }}</span>
+                                </p>
+                            @endif
                         </div>
                     @else
                         <div></div>
@@ -168,7 +194,9 @@
                                 {{ $p1['user']->name }}
                             </h3>
                             <p class="text-xs sm:text-sm text-[#dea538] font-bold mt-0.5">
-                                @if ($sort === 'most_active')
+                                @if ($sort === 'most_podium')
+                                    {{ $p1['podium_count'] }}&times; Podium
+                                @elseif ($sort === 'most_active')
                                     {{ $p1['total_matches'] }} Match
                                 @elseif ($sort === 'most_drills')
                                     {{ $p1['drills_count'] }}x Drill
@@ -176,6 +204,13 @@
                                     Win Rate {{ $p1['win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'most_podium')
+                                <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p1['user']->name }}">
+                                    <span class="text-[#dea538]" title="Juara 1">J1 {{ $p1['champion_count'] }}</span>
+                                    <span class="text-[#9aa0a6]" title="Juara 2">J2 {{ $p1['runner_up_count'] }}</span>
+                                    <span class="text-[#c88d4b]" title="Juara 3">J3 {{ $p1['third_place_count'] }}</span>
+                                </p>
+                            @endif
                         </div>
                     @else
                         <div></div>
@@ -195,7 +230,9 @@
                                 {{ $p3['user']->name }}
                             </h3>
                             <p class="text-[11px] sm:text-xs text-[#c88d4b] font-semibold mt-0.5">
-                                @if ($sort === 'most_active')
+                                @if ($sort === 'most_podium')
+                                    {{ $p3['podium_count'] }}&times; Podium
+                                @elseif ($sort === 'most_active')
                                     {{ $p3['total_matches'] }} Match
                                 @elseif ($sort === 'most_drills')
                                     {{ $p3['drills_count'] }}x Drill
@@ -203,6 +240,13 @@
                                     Win Rate {{ $p3['win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'most_podium')
+                                <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p3['user']->name }}">
+                                    <span class="text-[#dea538]" title="Juara 1">J1 {{ $p3['champion_count'] }}</span>
+                                    <span class="text-[#9aa0a6]" title="Juara 2">J2 {{ $p3['runner_up_count'] }}</span>
+                                    <span class="text-[#c88d4b]" title="Juara 3">J3 {{ $p3['third_place_count'] }}</span>
+                                </p>
+                            @endif
                         </div>
                     @else
                         <div></div>
@@ -245,14 +289,22 @@
                                         </span>
                                     </div>
                                     <p class="text-xs text-[#888e9b] mt-0.5">
-                                        {{ $item['total_matches'] }} tanding &bull; {{ $item['wins'] }} menang
+                                        @if ($sort === 'most_podium')
+                                            <span title="Juara 1">J1 {{ $item['champion_count'] }}</span> &bull;
+                                            <span title="Juara 2">J2 {{ $item['runner_up_count'] }}</span> &bull;
+                                            <span title="Juara 3">J3 {{ $item['third_place_count'] }}</span>
+                                        @else
+                                            {{ $item['total_matches'] }} tanding &bull; {{ $item['wins'] }} menang
+                                        @endif
                                     </p>
                                 </div>
                             </div>
 
                             <div class="shrink-0 text-right">
                                 <div class="px-2.5 py-1 rounded-xl bg-[#151619] border border-[#333741] text-xs font-bold text-white inline-block">
-                                    @if ($sort === 'most_active')
+                                    @if ($sort === 'most_podium')
+                                        {{ $item['podium_count'] }}&times; Podium
+                                    @elseif ($sort === 'most_active')
                                         {{ $item['total_matches'] }} Match
                                     @elseif ($sort === 'most_drills')
                                         {{ $item['drills_count'] }}x Drill

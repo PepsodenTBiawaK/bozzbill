@@ -155,6 +155,32 @@ test('podium positions must belong to different players', function () {
     expect($event->fresh()->status)->toBe(FunGameStatus::Open);
 });
 
+test('an admin can close an event when second and third places are left blank', function () {
+    $admin = User::factory()->create(['role' => UserRole::Admin]);
+    $champion = User::factory()->create();
+    $event = FunGame::create(['title' => 'Podium opsional', 'event_date' => '2026-10-01', 'status' => FunGameStatus::Open]);
+
+    $this->actingAs($admin)->post(route('fun-games.close', $event), [
+        'champion_id' => $champion->id, 'runner_up_id' => '', 'third_place_id' => '',
+    ])->assertRedirect(route('fun-games.show', $event))->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('fun_games', [
+        'id' => $event->id, 'status' => FunGameStatus::Completed->value,
+        'champion_id' => $champion->id, 'runner_up_id' => null, 'third_place_id' => null,
+    ]);
+});
+
+test('an event cannot be closed without first place even when second place is provided', function () {
+    $admin = User::factory()->create(['role' => UserRole::Admin]);
+    $runner = User::factory()->create();
+    $event = FunGame::create(['title' => 'Wajib juara satu', 'event_date' => '2026-10-01', 'status' => FunGameStatus::Open]);
+
+    $this->actingAs($admin)->post(route('fun-games.close', $event), ['runner_up_id' => $runner->id])
+        ->assertSessionHasErrors('champion_id');
+
+    $this->assertDatabaseHas('fun_games', ['id' => $event->id, 'status' => FunGameStatus::Open->value, 'champion_id' => null]);
+});
+
 test('match participants must be different even when their identifiers have different representations', function (string $format) {
     $this->seed();
     $admin = User::where('role', UserRole::Admin)->firstOrFail();
