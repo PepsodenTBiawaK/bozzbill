@@ -1,55 +1,7 @@
 <x-layouts.guest>
     <div 
-        x-data="{
-            tab: '{{ $initialTab }}',
-            step: 1,
-            phone: '{{ old('phone', $initialPhone) }}',
-            checking: false,
-            checkError: '',
-            memberInfo: null,
-            showPasswordLogin: false,
-            showPasswordAct: false,
-            showForgotPasswordModal: false,
-            
-            async checkPhone() {
-                this.checkError = '';
-                if (!this.phone || this.phone.trim().length < 8) {
-                    this.checkError = 'Masukkan nomor WhatsApp yang valid (minimal 8 digit).';
-                    return;
-                }
-                
-                this.checking = true;
-                try {
-                    const response = await fetch('{{ route('activation.check') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content'),
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({ phone: this.phone })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        this.checkError = data.message || 'Nomor WhatsApp belum terdaftar di Komunitas Bozz.';
-                        return;
-                    }
-                    
-                    if (data.status === 'already_active') {
-                        this.checkError = data.message;
-                    } else if (data.status === 'ready') {
-                        this.memberInfo = data.user;
-                        this.step = 2;
-                    }
-                } catch (e) {
-                    this.checkError = 'Gagal menghubungi server. Periksa koneksi internet Anda.';
-                } finally {
-                    this.checking = false;
-                }
-            }
-        }"
+        x-data="accountActivation(@js(route('activation.check')), @js($initialTab), @js(old('phone', $initialPhone)))"
+        @pageshow.window="resetSubmission()"
         class="min-h-screen bg-[#141518] relative flex flex-col items-center justify-center p-4 sm:p-6 overflow-x-hidden"
     >
         <!-- Atmospheric Background: Subtle Pool Hall Ambience with the Real Community Photo -->
@@ -135,7 +87,7 @@
                     </button>
                     <button 
                         type="button" 
-                        @click="tab = 'activation'; step = 1; checkError = ''" 
+                        @click="tab = 'activation'; step = 1; checkError = ''; activationNotice = ''"
                         :class="tab === 'activation' ? 'bg-[#292c34] text-[#dea538] font-semibold shadow' : 'text-[#d4d4d4]/60 hover:text-white'"
                         class="flex-1 py-2.5 text-center rounded-xl text-sm transition-all duration-200 cursor-pointer"
                     >
@@ -145,6 +97,7 @@
 
                 <!-- ================= TAB 1: MASUK ================= -->
                 <div x-show="tab === 'login'" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+                    <div x-show="activationNotice" x-cloak role="status" class="mb-5 p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs sm:text-sm" x-text="activationNotice"></div>
                     <div class="mb-5 text-left">
                         <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Silahkan Masuk, Bozz !!</h2>
                         <p class="text-xs sm:text-sm text-[#959595] mt-1">Masukkan No WhatsApp dan password untuk mengakses akun Anda.</p>
@@ -160,6 +113,7 @@
                                 type="tel" 
                                 id="login_phone" 
                                 name="phone" 
+                                x-model="phone"
                                 value="{{ old('phone', $initialPhone) }}" 
                                 placeholder="Contoh: 081234567890" 
                                 required 
@@ -183,6 +137,7 @@
                                 <input 
                                     :type="showPasswordLogin ? 'text' : 'password'" 
                                     id="login_password" 
+                                    x-ref="loginPassword"
                                     name="password" 
                                     placeholder="Masukkan password" 
                                     required 
@@ -308,7 +263,7 @@
                         </div>
 
                         <!-- Password Form -->
-                        <form method="POST" action="{{ route('activate.post') }}" class="space-y-3.5">
+                        <form method="POST" action="{{ route('activate.post') }}" @submit="submitActivation($event)" :aria-busy="activating" class="space-y-3.5">
                             @csrf
                             <input type="hidden" name="phone" :value="phone" />
 
@@ -351,7 +306,9 @@
 
                             <button 
                                 type="submit" 
-                                class="w-full mt-2 bg-[#dea538] hover:bg-[#c8912c] text-[#141518] font-bold py-3.5 rounded-xl text-sm sm:text-base transition duration-150 shadow-lg shadow-[#dea538]/10 cursor-pointer"
+                                :disabled="activating"
+                                x-text="activating ? 'Mengaktifkan akun...' : 'Aktifkan Akun & Masuk'"
+                                class="w-full mt-2 bg-[#dea538] hover:bg-[#c8912c] text-[#141518] font-bold py-3.5 rounded-xl text-sm sm:text-base transition duration-150 shadow-lg shadow-[#dea538]/10 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                             >
                                 Aktifkan Akun & Masuk
                             </button>
