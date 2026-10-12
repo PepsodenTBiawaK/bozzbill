@@ -2,7 +2,7 @@
     <div x-data="{ 
         tab: '{{ $tab }}',
         showAddMemberModal: false,
-        openHc: '3A',
+        openHc: @js($initialHandicap),
         searchQuery: @js($search)
     }" class="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         

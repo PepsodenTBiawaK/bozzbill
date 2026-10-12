@@ -114,6 +114,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'phone' => ['required', 'string'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'remember' => ['nullable', 'boolean'],
         ], [
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
             'password.min' => 'Password minimal harus 6 karakter.',
@@ -155,7 +156,7 @@ class AuthController extends Controller
 
         $user = $result;
 
-        Auth::login($user);
+        Auth::login($user, (bool) ($validated['remember'] ?? false));
         $request->session()->regenerate();
 
         return redirect()

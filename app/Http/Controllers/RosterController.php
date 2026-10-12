@@ -113,6 +113,7 @@ class RosterController extends Controller
             'podium' => $podium,
             'restRankings' => $restRankings,
             'rosterByHandicap' => $rosterByHandicap,
+            'initialHandicap' => $request->user()->handicap->value,
             'totalMembers' => $allMembers->count(),
         ]);
     }

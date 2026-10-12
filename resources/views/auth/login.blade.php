@@ -160,19 +160,7 @@
                         </div>
 
                         <!-- Remember Me -->
-                        <div class="flex items-center pt-0.5">
-                            <input type="hidden" name="remember" value="0" />
-                            <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input 
-                                    type="checkbox" 
-                                    name="remember" 
-                                    value="1"
-                                    class="w-4 h-4 rounded bg-[#151619] border-[#333741] text-[#dea538] focus:ring-[#dea538] focus:ring-offset-0" 
-                                    @checked(old('remember', '1') === '1')
-                                />
-                                <span class="text-xs text-[#a0a5b1]">Ingat saya di perangkat ini</span>
-                            </label>
-                        </div>
+                        <x-remember-device id="login_remember" />
 
                         <!-- Submit Button -->
                         <button 
@@ -303,6 +291,8 @@
                                     class="w-full bg-[#151619] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-3 text-white placeholder-[#555a66] text-sm sm:text-base transition outline-none"
                                 />
                             </div>
+
+                            <x-remember-device id="activation_remember" />
 
                             <button 
                                 type="submit" 
