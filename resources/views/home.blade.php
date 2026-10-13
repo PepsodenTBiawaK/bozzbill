@@ -60,7 +60,7 @@
                         {{ $stats['win_rate'] }} %
                     </p>
                     <p class="text-[10px] sm:text-xs font-semibold text-[#dea538] mt-1 leading-tight">
-                        Win Rate
+                        Win Rate Single
                     </p>
                 </div>
             </div>
@@ -78,7 +78,7 @@
                         {{ $stats['total_matches'] }}
                     </p>
                     <p class="text-[10px] sm:text-xs font-semibold text-[#dea538] mt-1 leading-tight">
-                        Total Match
+                        Match Single
                     </p>
                 </div>
             </div>
@@ -228,7 +228,7 @@
                 <div class="space-y-3">
                     @forelse ($recentMatches as $match)
                         @php
-                            $isWinner = $match->winner_id === $user->id;
+                            $isWinner = $match->wonBy($user->id);
                             $opponent = $match->player1_id === $user->id ? $match->player2 : $match->player1;
                         @endphp
 
@@ -239,11 +239,15 @@
                                 </span>
 
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-white truncate">
-                                        vs {{ $opponent->name }} <span class="text-xs text-[#dea538] font-semibold">(HC {{ $opponent->handicap->value }})</span>
+                                    <p class="text-sm font-bold text-white {{ $match->isDouble() ? 'line-clamp-2' : 'truncate' }}">
+                                        @if ($match->isDouble())
+                                            {{ $match->sideName(1) }} vs {{ $match->sideName(2) }}
+                                        @else
+                                            vs {{ $opponent->name }} <span class="text-xs text-[#dea538] font-semibold">(HC {{ $opponent->handicap->value }})</span>
+                                        @endif
                                     </p>
                                     <p class="text-xs text-[#888e9b]">
-                                        {{ $match->funGame->title }} &bull; {{ $match->stage ?? 'Fun Game Match' }}
+                                        {{ $match->funGame->title }} &bull; {{ $match->isDouble() ? 'Double · ' : '' }}{{ $match->stage ?? 'Fun Game Match' }}
                                     </p>
                                 </div>
                             </div>

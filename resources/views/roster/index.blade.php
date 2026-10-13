@@ -15,6 +15,7 @@
                 <p class="text-sm sm:text-base text-[#9ca3af] mt-1">
                     Leaderboard performa & direktori roster pemain
                 </p>
+                <p class="text-xs text-[#888e9b] mt-1">Performa individu memakai match single. Prestasi podium mencakup single dan double.</p>
             </div>
 
             <!-- Admin Add Member Button -->

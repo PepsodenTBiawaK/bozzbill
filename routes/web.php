@@ -59,7 +59,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/fun-games/quick-logger', [FunGameController::class, 'quickLogger'])->name('fun-games.quick-logger');
     Route::post('/fun-games', [FunGameController::class, 'store'])->name('fun-games.store');
     Route::get('/fun-games/{funGame}', [FunGameController::class, 'show'])->name('fun-games.show');
+    Route::put('/fun-games/{funGame}', [FunGameController::class, 'update'])->name('fun-games.update');
     Route::delete('/fun-games/{funGame}', [FunGameController::class, 'destroy'])->name('fun-games.destroy');
+    Route::post('/fun-games/{funGame}/teams', [FunGameController::class, 'storeTeam'])->name('fun-games.teams.store');
+    Route::put('/fun-games/{funGame}/teams/{team}', [FunGameController::class, 'updateTeam'])->scopeBindings()->name('fun-games.teams.update');
+    Route::delete('/fun-games/{funGame}/teams/{team}', [FunGameController::class, 'destroyTeam'])->scopeBindings()->name('fun-games.teams.destroy');
     Route::post('/fun-games/{funGame}/matches', [FunGameController::class, 'storeMatch'])->name('fun-games.matches.store');
     Route::get('/fun-games/{funGame}/matches/{match}/edit', [FunGameController::class, 'editMatch'])->scopeBindings()->name('fun-games.matches.edit');
     Route::put('/fun-games/{funGame}/matches/{match}', [FunGameController::class, 'updateMatch'])->scopeBindings()->name('fun-games.matches.update');

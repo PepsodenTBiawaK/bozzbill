@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\FunGameStatus;
 use App\Models\Badge;
 use App\Models\FunGame;
+use App\Models\FunGameTeam;
 use App\Models\MatchLog;
 use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +30,7 @@ class FunGameController extends Controller
     public function index(Request $request): View
     {
         $activeEvent = FunGame::where('status', FunGameStatus::Open)
-            ->with(['matches.player1', 'matches.player2', 'matches.winner'])
+            ->with(['matches.player1', 'matches.player2', 'matches.winner', 'matches.team1.player1', 'matches.team1.player2', 'matches.team2.player1', 'matches.team2.player2', 'matches.winnerTeam.player1', 'matches.winnerTeam.player2'])
             ->latest('event_date')
             ->latest('id')
             ->first();
@@ -54,8 +57,9 @@ class FunGameController extends Controller
             'runnerUp',
             'thirdPlace',
             'podiumPlayers',
-            'matches' => function ($q): void {
-                $q->with(['player1', 'player2', 'winner'])->latest();
+            'teams' => fn (HasMany $query): HasMany => $query->with(['player1', 'player2'])->withCount(['matchesAsTeam1', 'matchesAsTeam2'])->orderBy('id'),
+            'matches' => function (HasMany $q): void {
+                $q->with(['player1', 'player2', 'winner', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2', 'winnerTeam.player1', 'winnerTeam.player2'])->latest();
             },
         ]);
 
@@ -66,6 +70,7 @@ class FunGameController extends Controller
         return view('fun-games.show', [
             'funGame' => $funGame,
             'members' => $members,
+            'teams' => $funGame->teams,
         ]);
     }
 
@@ -94,7 +99,7 @@ class FunGameController extends Controller
             ->get(['id', 'name', 'handicap']);
 
         $recentMatches = MatchLog::where('fun_game_id', $activeEvent->id)
-            ->with(['player1', 'player2', 'winner'])
+            ->with(['player1', 'player2', 'winner', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2', 'winnerTeam.player1', 'winnerTeam.player2'])
             ->latest()
             ->take(10)
             ->get();
@@ -103,6 +108,7 @@ class FunGameController extends Controller
             'event' => $activeEvent,
             'members' => $members,
             'recentMatches' => $recentMatches,
+            'teams' => $activeEvent->teams()->with(['player1', 'player2'])->orderBy('id')->get(),
         ]);
     }
 
@@ -119,6 +125,7 @@ class FunGameController extends Controller
             'title' => ['required', 'string', 'max:150'],
             'event_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
+            'format' => ['sometimes', 'required', Rule::in(['single', 'double'])],
         ]);
 
         try {
@@ -131,6 +138,7 @@ class FunGameController extends Controller
 
                 return FunGame::create([
                     'title' => $validated['title'],
+                    'format' => $validated['format'] ?? 'single',
                     'event_date' => $validated['event_date'],
                     'notes' => $validated['notes'] ?? null,
                     'status' => FunGameStatus::Open,
@@ -148,6 +156,118 @@ class FunGameController extends Controller
             ->with('status_success', "Event '{$funGame->title}' berhasil dibuka! Silakan catat pertandingan.");
     }
 
+    public function update(Request $request, FunGame $funGame): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        DB::transaction(function () use ($request, $funGame, $validated): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $event->update(['title' => $validated['title'], 'notes' => $validated['notes'] ?? null]);
+        });
+
+        return redirect()->route('fun-games.show', $funGame)->with('status_success', 'Judul dan deskripsi Fun Game berhasil diperbarui.');
+    }
+
+    public function storeTeam(Request $request, FunGame $funGame): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $validated = $this->validatedTeam($request);
+
+        DB::transaction(function () use ($request, $funGame, $validated): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            $this->ensureTeamsEditable($event);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $this->ensurePlayersAvailable($event, $validated);
+            $event->teams()->create($validated);
+        });
+
+        return back()->with('status_success', 'Pasangan berhasil ditambahkan.');
+    }
+
+    public function updateTeam(Request $request, FunGame $funGame, FunGameTeam $team): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $validated = $this->validatedTeam($request);
+
+        DB::transaction(function () use ($request, $funGame, $team, $validated): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            $this->ensureTeamsEditable($event);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $target = $event->teams()->lockForUpdate()->findOrFail($team->id);
+            $this->ensureTeamUnused($target);
+            $this->ensurePlayersAvailable($event, $validated, $target);
+            $target->update($validated);
+        });
+
+        return back()->with('status_success', 'Pasangan berhasil diperbarui.');
+    }
+
+    public function destroyTeam(Request $request, FunGame $funGame, FunGameTeam $team): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        DB::transaction(function () use ($request, $funGame, $team): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            $this->ensureTeamsEditable($event);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $target = $event->teams()->lockForUpdate()->findOrFail($team->id);
+            $this->ensureTeamUnused($target);
+            $target->delete();
+        });
+
+        return back()->with('status_success', 'Pasangan berhasil dihapus.');
+    }
+
+    private function ensureTeamsEditable(FunGame $funGame): void
+    {
+        if (! $funGame->isOpen() || ! $funGame->isDouble()) {
+            throw ValidationException::withMessages(['fun_game' => 'Pasangan hanya dapat diatur pada Fun Game double yang masih berjalan.']);
+        }
+    }
+
+    private function ensureTeamUnused(FunGameTeam $team): void
+    {
+        if ($team->hasMatches()) {
+            throw ValidationException::withMessages(['team' => 'Pasangan yang sudah memiliki match tidak dapat diubah atau dihapus.']);
+        }
+    }
+
+    /** @return array{player1_id: int, player2_id: int} */
+    private function validatedTeam(Request $request): array
+    {
+        $validated = $request->validate([
+            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+        ]);
+        $validated = array_map(fn (int|string $id): int => (int) $id, $validated);
+
+        if ($validated['player1_id'] === $validated['player2_id']) {
+            throw ValidationException::withMessages(['player2_id' => 'Satu pasangan harus terdiri dari dua anggota yang berbeda.']);
+        }
+
+        return $validated;
+    }
+
+    /** @param array{player1_id: int, player2_id: int} $players */
+    private function ensurePlayersAvailable(FunGame $funGame, array $players, ?FunGameTeam $except = null): void
+    {
+        User::query()->whereIn('id', array_values($players))->orderBy('id')->lockForUpdate()->get();
+
+        foreach ($players as $field => $playerId) {
+            $exists = $funGame->teams()->when($except !== null, fn (Builder $query): Builder => $query->whereKeyNot($except->id))
+                ->where(fn (Builder $query): Builder => $query->where('player1_id', $playerId)->orWhere('player2_id', $playerId))->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([$field => 'Anggota ini sudah berada dalam pasangan lain di Fun Game ini.']);
+            }
+        }
+    }
+
     /**
      * Record a new match in the event (Admin Quick Match Logger).
      */
@@ -157,10 +277,11 @@ class FunGameController extends Controller
             abort(403);
         }
 
-        $validated = $this->validatedMatch($request);
+        $validated = $this->validatedMatch($request, $funGame);
 
-        $match = DB::transaction(function () use ($funGame, $validated): MatchLog {
+        $match = DB::transaction(function () use ($request, $funGame, $validated): MatchLog {
             $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
 
             if (! $event->isOpen()) {
                 throw ValidationException::withMessages([
@@ -168,21 +289,9 @@ class FunGameController extends Controller
                 ]);
             }
 
-            $players = User::query()->whereIn('id', [$validated['player1_id'], $validated['player2_id']])
-                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            $p1 = $players->get($validated['player1_id']);
-            $p2 = $players->get($validated['player2_id']);
-
             $match = MatchLog::create([
+                ...$this->matchAttributes($event, $validated),
                 'fun_game_id' => $event->id,
-                'player1_id' => $p1->id,
-                'player2_id' => $p2->id,
-                'player1_score' => $validated['player1_score'],
-                'player2_score' => $validated['player2_score'],
-                'winner_id' => $validated['winner_id'],
-                'player1_hc' => $p1->handicap,
-                'player2_hc' => $p2->handicap,
-                'stage' => $validated['stage'] ?? 'Penyisihan',
                 'recorded_by' => Auth::id(),
             ]);
 
@@ -198,7 +307,7 @@ class FunGameController extends Controller
             return $match;
         });
 
-        return back()->with('status_success', "Match berhasil dicatat: {$match->winner->name} menang ({$match->scoreSummary()})!");
+        return back()->with('status_success', "Match berhasil dicatat: {$match->winnerName()} menang ({$match->scoreSummary()})!");
     }
 
     public function editMatch(Request $request, FunGame $funGame, MatchLog $match): View
@@ -208,15 +317,16 @@ class FunGameController extends Controller
 
         return view('fun-games.edit-match', [
             'funGame' => $funGame,
-            'match' => $match->load(['player1', 'player2']),
+            'match' => $match->load(['player1', 'player2', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2']),
             'members' => User::query()->orderBy('name')->get(),
+            'teams' => $funGame->teams()->with(['player1', 'player2'])->orderBy('id')->get(),
         ]);
     }
 
     public function updateMatch(Request $request, FunGame $funGame, MatchLog $match): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
-        $validated = $this->validatedMatch($request);
+        $validated = $this->validatedMatch($request, $funGame);
 
         DB::transaction(function () use ($request, $funGame, $match, $validated): void {
             $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
@@ -224,19 +334,11 @@ class FunGameController extends Controller
             abort_unless($request->user()->fresh()->isAdmin(), 403);
             $target = $event->matches()->lockForUpdate()->findOrFail($match->id);
             $oldWinnerId = $target->winner_id;
-            $snapshots = [$target->player1_id => $target->player1_hc, $target->player2_id => $target->player2_hc];
-            $players = User::query()->whereIn('id', [$oldWinnerId, $validated['player1_id'], $validated['player2_id']])
-                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $target->update($this->matchAttributes($event, $validated, $target));
 
-            $target->update([
-                ...$validated,
-                'stage' => $validated['stage'] ?? 'Penyisihan',
-                'player1_hc' => $snapshots[$validated['player1_id']] ?? $players->get($validated['player1_id'])->handicap,
-                'player2_hc' => $snapshots[$validated['player2_id']] ?? $players->get($validated['player2_id'])->handicap,
-            ]);
-
-            foreach (array_unique([$oldWinnerId, $target->winner_id]) as $winnerId) {
-                $this->syncGiantKillerBadge($players->get($winnerId));
+            foreach (User::query()->whereIn('id', array_filter(array_unique([$oldWinnerId, $target->winner_id])))
+                ->orderBy('id')->lockForUpdate()->get() as $winner) {
+                $this->syncGiantKillerBadge($winner);
             }
         });
 
@@ -252,9 +354,11 @@ class FunGameController extends Controller
             $this->ensureMatchesEditable($event);
             abort_unless($request->user()->fresh()->isAdmin(), 403);
             $target = $event->matches()->lockForUpdate()->findOrFail($match->id);
-            $winner = User::query()->lockForUpdate()->findOrFail($target->winner_id);
+            $winner = $target->winner_id !== null ? User::query()->lockForUpdate()->findOrFail($target->winner_id) : null;
             $target->delete();
-            $this->syncGiantKillerBadge($winner);
+            if ($winner !== null) {
+                $this->syncGiantKillerBadge($winner);
+            }
         });
 
         return back()->with('status_success', 'Match berhasil dihapus. Statistik pemain sudah disesuaikan.');
@@ -281,6 +385,10 @@ class FunGameController extends Controller
     {
         if (! Auth::user()->isAdmin()) {
             abort(403);
+        }
+
+        if ($funGame->isDouble()) {
+            return $this->closeDoubleEvent($request, $funGame);
         }
 
         $validator = Validator::make($request->all(), [
@@ -320,8 +428,9 @@ class FunGameController extends Controller
             }
         }
 
-        DB::transaction(function () use ($funGame, $validated): void {
+        DB::transaction(function () use ($request, $funGame, $validated): void {
             $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
 
             if (! $event->isOpen()) {
                 throw ValidationException::withMessages([
@@ -377,7 +486,7 @@ class FunGameController extends Controller
             $podiumWinnerIds = DB::table('fun_game_podium')->where('fun_game_id', $event->id)
                 ->where('position', 1)->lockForUpdate()->pluck('user_id');
             $championIds = $podiumWinnerIds->push($event->champion_id)->filter()->unique();
-            $participantIds = $event->matches()->pluck('player1_id')->merge($event->matches()->pluck('player2_id'))
+            $participantIds = $event->matches()->with(['team1', 'team2'])->get()->flatMap(fn (MatchLog $match): array => $match->participantIds())
                 ->merge($event->podiumPlayers()->pluck('users.id'))
                 ->merge([$event->champion_id, $event->runner_up_id, $event->third_place_id])->filter()->unique();
             $players = User::query()->whereIn('id', $participantIds->merge($winnerIds)->merge($championIds)->unique())
@@ -407,11 +516,124 @@ class FunGameController extends Controller
         $player->syncAchievementBadges(['champions']);
     }
 
+    private function closeDoubleEvent(Request $request, FunGame $funGame): RedirectResponse
+    {
+        $positions = ['champion_team_id' => 1, 'runner_up_team_id' => 2, 'third_place_team_id' => 3];
+        $rules = [];
+
+        foreach ($positions as $field => $position) {
+            $rules[$field] = ['bail', $position === 1 ? 'required' : 'nullable', 'integer', Rule::exists('fun_game_teams', 'id')->where('fun_game_id', $funGame->id)];
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+        $validator->after(function (ValidatorInstance $validator) use ($request, $positions): void {
+            $seen = [];
+
+            foreach ($positions as $field => $position) {
+                $teamId = $request->input($field);
+
+                if ($teamId === null || $validator->errors()->has($field)) {
+                    continue;
+                }
+
+                $teamId = (int) $teamId;
+                if (isset($seen[$teamId])) {
+                    $validator->errors()->add($field, 'Setiap posisi juara harus diisi pasangan yang berbeda.');
+                }
+                $seen[$teamId] = true;
+            }
+        });
+        $validated = $validator->validate();
+
+        DB::transaction(function () use ($request, $funGame, $validated, $positions): void {
+            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+
+            if (! $event->isOpen()) {
+                throw ValidationException::withMessages(['fun_game' => 'Event sudah ditutup. Hasil juara tidak dapat diubah melalui penutupan event.']);
+            }
+
+            abort_unless($request->user()->fresh()->isAdmin(), 403);
+            $teams = $event->teams()->whereIn('id', array_filter($validated))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $podium = [];
+
+            foreach ($positions as $field => $position) {
+                if (! isset($validated[$field])) {
+                    continue;
+                }
+
+                $team = $teams->get((int) $validated[$field]);
+                if ($team === null) {
+                    throw ValidationException::withMessages([$field => 'Pasangan tidak lagi terdaftar pada Fun Game ini.']);
+                }
+
+                foreach ($team->participantIds() as $playerId) {
+                    $podium[$playerId] = ['position' => $position];
+                }
+            }
+
+            $participantIds = $event->matches()->with(['team1', 'team2'])->get()->flatMap(fn (MatchLog $match): array => $match->participantIds())
+                ->merge(array_keys($podium))->unique();
+            $participants = User::query()->whereIn('id', $participantIds)->orderBy('id')->lockForUpdate()->get();
+            $event->update(['status' => FunGameStatus::Completed, 'champion_id' => null, 'runner_up_id' => null, 'third_place_id' => null]);
+            $event->podiumPlayers()->sync($podium);
+
+            foreach ($participants as $participant) {
+                $participant->syncAchievementBadges(['champions', 'streak']);
+            }
+        });
+
+        return redirect()->route('fun-games.show', $funGame)->with('status_success', "Event '{$funGame->title}' resmi ditutup. Pasangan juara telah dinobatkan!");
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function matchAttributes(FunGame $event, array $validated, ?MatchLog $existing = null): array
+    {
+        if ($event->isDouble()) {
+            $teams = $event->teams()->whereIn('id', [$validated['team1_id'], $validated['team2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+            foreach (['team1_id', 'team2_id'] as $field) {
+                if (! $teams->has($validated[$field])) {
+                    throw ValidationException::withMessages([$field => 'Pasangan tidak lagi terdaftar pada Fun Game ini.']);
+                }
+            }
+
+            return [
+                ...$validated,
+                'stage' => $validated['stage'] ?? 'Penyisihan',
+                'player1_id' => null,
+                'player2_id' => null,
+                'winner_id' => null,
+                'player1_hc' => null,
+                'player2_hc' => null,
+            ];
+        }
+
+        $snapshots = $existing !== null ? [$existing->player1_id => $existing->player1_hc, $existing->player2_id => $existing->player2_hc] : [];
+        $players = User::query()->whereIn('id', [$validated['player1_id'], $validated['player2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+        return [
+            ...$validated,
+            'stage' => $validated['stage'] ?? 'Penyisihan',
+            'player1_hc' => $snapshots[$validated['player1_id']] ?? $players->get($validated['player1_id'])->handicap,
+            'player2_hc' => $snapshots[$validated['player2_id']] ?? $players->get($validated['player2_id'])->handicap,
+            'team1_id' => null,
+            'team2_id' => null,
+            'winner_team_id' => null,
+        ];
+    }
+
     /**
      * @return array{player1_id: int|string, player2_id: int|string, player1_score: int|string, player2_score: int|string, winner_id: int, stage?: ?string}
      */
-    private function validatedMatch(Request $request): array
+    private function validatedMatch(Request $request, FunGame $funGame): array
     {
+        if ($funGame->isDouble()) {
+            return $this->validatedDoubleMatch($request, $funGame);
+        }
+
         $validator = Validator::make($request->all(), [
             'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
             'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
@@ -442,7 +664,57 @@ class FunGameController extends Controller
         });
 
         $validated = $validator->validate();
-        $validated['winner_id'] = (int) $validated['winner_id'];
+        foreach (['player1_id', 'player2_id', 'winner_id'] as $field) {
+            $validated[$field] = (int) $validated[$field];
+        }
+
+        return $validated;
+    }
+
+    /** @return array{team1_id: int, team2_id: int, player1_score: int|string, player2_score: int|string, winner_team_id: int, stage?: ?string} */
+    private function validatedDoubleMatch(Request $request, FunGame $funGame): array
+    {
+        $validator = Validator::make($request->all(), [
+            'team1_id' => ['bail', 'required', 'integer', Rule::exists('fun_game_teams', 'id')->where('fun_game_id', $funGame->id)],
+            'team2_id' => ['bail', 'required', 'integer', Rule::exists('fun_game_teams', 'id')->where('fun_game_id', $funGame->id)],
+            'player1_score' => ['required', 'integer', 'min:0', 'max:50'],
+            'player2_score' => ['required', 'integer', 'min:0', 'max:50'],
+            'winner_team_id' => ['bail', 'required', 'integer'],
+            'stage' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $validator->after(function (ValidatorInstance $validator) use ($request): void {
+            if ($validator->errors()->hasAny(['team1_id', 'team2_id'])) {
+                return;
+            }
+
+            $team1Id = (int) $request->input('team1_id');
+            $team2Id = (int) $request->input('team2_id');
+            if ($team1Id === $team2Id) {
+                $validator->errors()->add('team2_id', 'Tim 1 dan Tim 2 harus berbeda.');
+            }
+
+            if (! $validator->errors()->has('winner_team_id') && ! in_array((int) $request->input('winner_team_id'), [$team1Id, $team2Id], true)) {
+                $validator->errors()->add('winner_team_id', 'Pemenang harus Tim 1 atau Tim 2.');
+            }
+
+            if ($validator->errors()->hasAny(['player1_score', 'player2_score', 'winner_team_id'])) {
+                return;
+            }
+
+            $firstScore = (int) $request->input('player1_score');
+            $secondScore = (int) $request->input('player2_score');
+            if ($firstScore === $secondScore) {
+                $validator->errors()->add('player2_score', 'Skor akhir tidak boleh seri.');
+            } elseif ((int) $request->input('winner_team_id') !== ($firstScore > $secondScore ? $team1Id : $team2Id)) {
+                $validator->errors()->add('winner_team_id', 'Pemenang harus pasangan dengan skor lebih tinggi.');
+            }
+        });
+
+        $validated = $validator->validate();
+        foreach (['team1_id', 'team2_id', 'winner_team_id'] as $field) {
+            $validated[$field] = (int) $validated[$field];
+        }
 
         return $validated;
     }

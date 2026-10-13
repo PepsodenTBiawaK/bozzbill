@@ -18,6 +18,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: bozzbill_test
+          MYSQL_ROOT_PASSWORD: bozzbill_ci_only
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
     steps:
       - name: Check deployment configuration
         env:
@@ -67,6 +82,25 @@ jobs:
           php artisan key:generate --no-interaction
           php artisan test --compact
           npm test
+
+      - name: Test Fun Game changes on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: bozzbill_test
+          DB_USERNAME: root
+          DB_PASSWORD: bozzbill_ci_only
+        run: >-
+          php artisan test --compact
+          tests/Feature/DoubleFunGameTest.php
+          tests/Feature/DoubleFunGameUiTest.php
+          tests/Feature/DoublesMigrationTest.php
+          tests/Feature/FunGameMetadataTest.php
+          tests/Feature/FunGameLifecycleTest.php
+          tests/Feature/FunGameHistoryDeletionTest.php
+          tests/Feature/ActiveMatchManagementTest.php
+          tests/Feature/CommunityHistoryImportTest.php
 
       - name: Prepare production dependencies
         run: |

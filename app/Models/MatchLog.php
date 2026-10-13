@@ -18,6 +18,9 @@ class MatchLog extends Model
         'player1_score',
         'player2_score',
         'winner_id',
+        'team1_id',
+        'team2_id',
+        'winner_team_id',
         'player1_hc',
         'player2_hc',
         'stage',
@@ -54,24 +57,97 @@ class MatchLog extends Model
         return $this->belongsTo(User::class, 'winner_id');
     }
 
+    public function team1(): BelongsTo
+    {
+        return $this->belongsTo(FunGameTeam::class, 'team1_id');
+    }
+
+    public function team2(): BelongsTo
+    {
+        return $this->belongsTo(FunGameTeam::class, 'team2_id');
+    }
+
+    public function winnerTeam(): BelongsTo
+    {
+        return $this->belongsTo(FunGameTeam::class, 'winner_team_id');
+    }
+
+    public function isDouble(): bool
+    {
+        return $this->team1_id !== null || $this->team2_id !== null;
+    }
+
+    public function sideName(int $side): string
+    {
+        if ($this->isDouble()) {
+            return ($side === 1 ? $this->team1 : $this->team2)?->displayName() ?? '-';
+        }
+
+        return ($side === 1 ? $this->player1 : $this->player2)?->name ?? '-';
+    }
+
+    public function winnerName(): string
+    {
+        return $this->isDouble() ? ($this->winnerTeam?->displayName() ?? '-') : ($this->winner?->name ?? '-');
+    }
+
+    /** @return list<int> */
+    public function participantIds(): array
+    {
+        if ($this->isDouble()) {
+            return array_values(array_unique([
+                ...($this->team1?->participantIds() ?? []),
+                ...($this->team2?->participantIds() ?? []),
+            ]));
+        }
+
+        return array_values(array_filter([$this->player1_id, $this->player2_id]));
+    }
+
+    public function wonBy(User|int $player): bool
+    {
+        $playerId = $player instanceof User ? $player->id : $player;
+
+        return $this->isDouble()
+            ? in_array($playerId, $this->winnerTeam?->participantIds() ?? [], true)
+            : $this->winner_id === $playerId;
+    }
+
+    public function opponentNameFor(int $playerId): string
+    {
+        $isFirstSide = $this->isDouble()
+            ? in_array($playerId, $this->team1?->participantIds() ?? [], true)
+            : $this->player1_id === $playerId;
+
+        return $this->sideName($isFirstSide ? 2 : 1);
+    }
+
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
-    public function loserId(): int
+    public function loserId(): ?int
     {
+        if ($this->isDouble()) {
+            return null;
+        }
+
         return $this->winner_id === $this->player1_id ? $this->player2_id : $this->player1_id;
     }
 
     public function winnerScore(): ?int
     {
-        return $this->winner_id === $this->player1_id ? $this->player1_score : $this->player2_score;
+        $firstSideWon = $this->isDouble() ? $this->winner_team_id === $this->team1_id : $this->winner_id === $this->player1_id;
+
+        return $firstSideWon ? $this->player1_score : $this->player2_score;
     }
 
     public function loserScore(): ?int
     {
-        return $this->winner_id === $this->player1_id ? $this->player2_score : $this->player1_score;
+        $firstSideWon = $this->isDouble() ? $this->winner_team_id === $this->team1_id : $this->winner_id === $this->player1_id;
+
+        return $firstSideWon ? $this->player2_score : $this->player1_score;
     }
 
     public function scoreSummary(): string
@@ -94,7 +170,11 @@ class MatchLog extends Model
             return 'Skor Tidak Tercatat';
         }
 
-        return $playerId === $this->player2_id
+        $isSecondSide = $this->isDouble()
+            ? in_array($playerId, $this->team2?->participantIds() ?? [], true)
+            : $playerId === $this->player2_id;
+
+        return $isSecondSide
             ? "{$this->player2_score} {$separator} {$this->player1_score}"
             : "{$this->player1_score} {$separator} {$this->player2_score}";
     }
@@ -104,6 +184,10 @@ class MatchLog extends Model
      */
     public function isGiantKiller(): bool
     {
+        if ($this->isDouble() || $this->player1_hc === null || $this->player2_hc === null) {
+            return false;
+        }
+
         if ($this->winner_id === $this->player1_id) {
             return $this->player1_hc->isLowerThan($this->player2_hc);
         }

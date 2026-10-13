@@ -1,5 +1,5 @@
 <x-layouts.app>
-    <div x-data="{ showCreateModal: false }" class="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+    <div x-data="{ showCreateModal: @js($errors->any()) }" class="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         
         <!-- Header -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -96,7 +96,7 @@
                         <div class="pt-2 flex items-center gap-4 text-xs text-[#888e9b]">
                             <span><strong class="text-white font-bold">{{ $activeEvent->matches->count() }}</strong> Match Tercatat</span>
                             <span>&bull;</span>
-                            <span>Format: Single / Fun Game Bebas</span>
+                            <span>Format: {{ $activeEvent->isDouble() ? 'Double' : 'Single' }}</span>
                         </div>
                     </div>
 
@@ -142,7 +142,7 @@
                         <!-- Top Info -->
                         <div>
                             <div class="flex items-center justify-between text-xs text-[#888e9b] mb-1.5">
-                                <span class="font-medium text-[#dea538]">{{ $event->event_date->format('d M Y') }}</span>
+                                <span class="font-medium text-[#dea538]">{{ $event->event_date->format('d M Y') }} &bull; {{ $event->isDouble() ? 'Double' : 'Single' }}</span>
                                 <span class="px-2 py-0.5 rounded-full bg-[#202227] text-[11px] font-semibold text-[#888e9b]">
                                     {{ $event->matches_count }} Match Tercatat
                                 </span>
@@ -160,7 +160,7 @@
                         </div>
 
                         @if ($event->match_records_complete === false && $event->isCompleted())
-                            <p class="text-[11px] text-[#959595]">{{ $event->format === 'double' ? 'Double ? ' : '' }}Rekap histori belum lengkap</p>
+                            <p class="text-[11px] text-[#959595]">Rekap histori belum lengkap</p>
                         @endif
                         @if ($event->isCompleted())
                         <!-- Podium Champions -->
@@ -231,7 +231,7 @@
             <div 
                 x-show="showCreateModal" 
                 x-transition.opacity 
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-6 bg-black/80 backdrop-blur-sm"
                 style="display: none;"
             >
                 <div 
@@ -256,6 +256,8 @@
                                 type="text" 
                                 id="event_title" 
                                 name="title" 
+                                value="{{ old('title') }}"
+                                maxlength="150"
                                 placeholder="Contoh: Fun Game Bozz #14 - Friday Night" 
                                 required 
                                 class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none"
@@ -268,21 +270,34 @@
                                 type="date" 
                                 id="event_date" 
                                 name="event_date" 
-                                value="{{ date('Y-m-d') }}" 
+                                value="{{ old('event_date', date('Y-m-d')) }}"
                                 required 
                                 class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none"
                             />
                         </div>
 
+                        <fieldset class="space-y-2">
+                            <legend class="text-xs font-medium text-[#d4d4d4]">Format Fun Game</legend>
+                            <div class="grid grid-cols-2 gap-3">
+                                @foreach (['single' => 'Single', 'double' => 'Double'] as $format => $label)
+                                    <label class="flex min-h-11 items-center gap-2 rounded-xl border border-[#333741] bg-[#16171a] px-3 py-2 text-sm text-white cursor-pointer has-checked:border-[#dea538] has-checked:bg-[#dea538]/5">
+                                        <input type="radio" name="format" value="{{ $format }}" @checked(old('format', 'single') === $format) class="accent-[#dea538]" />
+                                        <span>{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <p class="text-[11px] text-[#959595]">Double: susun pasangan di halaman event. Pasangan tetap sepanjang event.</p>
+                        </fieldset>
+
                         <div>
-                            <label for="event_notes" class="block text-xs font-medium text-[#d4d4d4] mb-1.5">Catatan / Format (Opsional)</label>
+                            <label for="event_notes" class="block text-xs font-medium text-[#d4d4d4] mb-1.5">Deskripsi (opsional)</label>
                             <textarea 
                                 id="event_notes" 
                                 name="notes" 
                                 rows="3" 
                                 placeholder="Contoh: Race to 3, bola 9 di Meja Rasson Tebet..." 
                                 class="w-full bg-[#16171a] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none"
-                            ></textarea>
+                            >{{ old('notes') }}</textarea>
                         </div>
 
                         <button 

@@ -157,7 +157,8 @@ class User extends Authenticatable
      */
     public function wonMatches(): HasMany
     {
-        return $this->hasMany(MatchLog::class, 'winner_id');
+        return $this->hasMany(MatchLog::class, 'winner_id')
+            ->whereHas('funGame', fn (Builder $query): Builder => $query->where('format', 'single'));
     }
 
     /**
@@ -167,8 +168,23 @@ class User extends Authenticatable
     {
         return MatchLog::query()->where(function (Builder $query): void {
             $query->where('player1_id', $this->id)
-                ->orWhere('player2_id', $this->id);
+                ->orWhere('player2_id', $this->id)
+                ->orWhereHas('team1', function (Builder $team): void {
+                    $team->where('player1_id', $this->id)->orWhere('player2_id', $this->id);
+                })
+                ->orWhereHas('team2', function (Builder $team): void {
+                    $team->where('player1_id', $this->id)->orWhere('player2_id', $this->id);
+                });
         });
+    }
+
+    /**
+     * Singles used to measure individual performance.
+     */
+    public function singleMatches(): Builder
+    {
+        return $this->allMatches()
+            ->whereHas('funGame', fn (Builder $query): Builder => $query->where('format', 'single'));
     }
 
     /**
@@ -269,11 +285,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Calculate total matches count.
+     * Calculate the singles match count for individual performance.
      */
     public function totalMatchesCount(): int
     {
-        return $this->allMatches()->count();
+        return $this->singleMatches()->count();
     }
 
     /**
@@ -434,10 +450,12 @@ class User extends Authenticatable
      */
     public function headToHeadWith(User $opponent): array
     {
-        $matches = MatchLog::where(function ($q) use ($opponent): void {
-            $q->where('player1_id', $this->id)->where('player2_id', $opponent->id);
-        })->orWhere(function ($q) use ($opponent): void {
-            $q->where('player1_id', $opponent->id)->where('player2_id', $this->id);
+        $matches = $this->singleMatches()->where(function (Builder $query) use ($opponent): void {
+            $query->where(function (Builder $side) use ($opponent): void {
+                $side->where('player1_id', $this->id)->where('player2_id', $opponent->id);
+            })->orWhere(function (Builder $side) use ($opponent): void {
+                $side->where('player1_id', $opponent->id)->where('player2_id', $this->id);
+            });
         })
             ->with(['funGame', 'winner', 'player1', 'player2'])
             ->latest('created_at')

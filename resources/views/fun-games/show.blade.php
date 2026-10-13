@@ -1,5 +1,5 @@
 <x-layouts.app>
-    <div x-data="{ showCloseModal: false }" class="max-w-5xl mx-auto space-y-6 sm:space-y-8">
+    <div x-data="{ showCloseModal: @js($errors->hasAny(['champion_id', 'runner_up_id', 'third_place_id', 'champion_team_id', 'runner_up_team_id', 'third_place_team_id'])) }" class="max-w-5xl mx-auto space-y-6 sm:space-y-8">
         
         <!-- Header -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -12,7 +12,7 @@
                 </a>
                 <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">{{ $funGame->title }}</h1>
                 <p class="text-xs sm:text-sm text-[#959595] mt-0.5">
-                    Tanggal: {{ $funGame->event_date->format('d F Y') }} &bull; Total {{ $funGame->matches->count() }} Pertandingan
+                    Tanggal: {{ $funGame->event_date->format('d F Y') }} &bull; {{ $funGame->isDouble() ? 'Double' : 'Single' }} &bull; Total {{ $funGame->matches->count() }} Pertandingan
                 </p>
             </div>
 
@@ -68,6 +68,13 @@
         @if ($funGame->notes)
             <p class="text-xs text-[#959595] leading-relaxed">{{ $funGame->notes }}</p>
         @endif
+        @if (auth()->user()?->isAdmin())
+            @include('fun-games.edit-details', ['funGame' => $funGame])
+        @endif
+        @if ($funGame->isDouble())
+            <p class="text-xs text-[#959595]">Double masuk riwayat dan prestasi podium. Evaluasi HC, win rate individu, serta H2H menggunakan pertandingan single.</p>
+            @include('fun-games.teams', ['funGame' => $funGame, 'members' => $members])
+        @endif
         <!-- ================= EVENT STATUS BANNER ================= -->
         @if ($funGame->isCompleted())
             <!-- Completed Event Podium Banner -->
@@ -120,7 +127,7 @@
                     <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
                     <div>
                         <p class="text-sm font-bold text-white">Event ini sedang aktif dan menerima pencatatan match.</p>
-                        <p class="text-xs text-emerald-400/80">Hasil pertandingan akan otomatis mempengaruhi evaluasi Handicap member.</p>
+                        <p class="text-xs text-emerald-400/80">{{ $funGame->isDouble() ? 'Pilih pasangan yang sudah disusun saat mencatat skor.' : 'Hasil pertandingan akan otomatis mempengaruhi evaluasi Handicap member.' }}</p>
                     </div>
                 </div>
 
@@ -151,21 +158,25 @@
 
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="font-bold text-sm {{ $match->winner_id == $match->player1_id ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
-                                        {{ $match->player1->name }}
-                                        <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player1_hc->value }})</span>
+                                    <span class="font-bold text-sm {{ ($match->isDouble() ? $match->winner_team_id == $match->team1_id : $match->winner_id == $match->player1_id) ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
+                                        {{ $match->sideName(1) }}
+                                        @unless ($match->isDouble())
+                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player1_hc->value }})</span>
+                                        @endunless
                                     </span>
 
                                     <span class="text-xs text-[#888e9b] px-1.5 py-0.5 rounded bg-[#202227]">vs</span>
 
-                                    <span class="font-bold text-sm {{ $match->winner_id == $match->player2_id ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
-                                        {{ $match->player2->name }}
-                                        <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player2_hc->value }})</span>
+                                    <span class="font-bold text-sm {{ ($match->isDouble() ? $match->winner_team_id == $match->team2_id : $match->winner_id == $match->player2_id) ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
+                                        {{ $match->sideName(2) }}
+                                        @unless ($match->isDouble())
+                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player2_hc->value }})</span>
+                                        @endunless
                                     </span>
                                 </div>
 
                                 <p class="text-xs text-[#787e8c] mt-1">
-                                    {{ $match->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $match->winner->name }}</strong>
+                                    {{ $match->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $match->winnerName() }}</strong>
                                     @if ($match->isGiantKiller())
                                         <span class="ml-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-[#dea538] border border-[#dea538]/30 text-[10px] font-bold">
                                             Giant Killer
@@ -213,27 +224,44 @@
                         </button>
                     </div>
 
-                    <form method="POST" action="{{ route('fun-games.close', $funGame) }}" x-data="{ championId: @js((string) old('champion_id', '')), runnerId: @js((string) old('runner_up_id', '')), thirdId: @js((string) old('third_place_id', '')) }" class="space-y-4">
+                    @php
+                        $championField = $funGame->isDouble() ? 'champion_team_id' : 'champion_id';
+                        $runnerField = $funGame->isDouble() ? 'runner_up_team_id' : 'runner_up_id';
+                        $thirdField = $funGame->isDouble() ? 'third_place_team_id' : 'third_place_id';
+                    @endphp
+                    <form method="POST" action="{{ route('fun-games.close', $funGame) }}" x-data="{ championId: @js((string) old($championField, '')), runnerId: @js((string) old($runnerField, '')), thirdId: @js((string) old($thirdField, '')) }" class="space-y-4">
                         @csrf
 
                         <!-- Juara 1 -->
                         <p class="text-xs text-[#888e9b]">Juara 1 wajib diisi. Juara 2 dan 3 boleh dikosongkan.</p>
                         <div>
-                            <x-player-picker :players="$members" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
+                            @if ($funGame->isDouble())
+                                <x-team-picker :teams="$funGame->teams" name="champion_team_id" label="Pasangan Juara 1" x-model="championId" :value="old('champion_team_id', '')" exclude="[runnerId, thirdId]" required />
+                            @else
+                                <x-player-picker :players="$members" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
+                            @endif
                         </div>
 
                         <!-- Juara 2 -->
                         <div>
-                            <x-player-picker :players="$members" name="runner_up_id" label="Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_id', '')" exclude="[championId, thirdId]"  />
+                            @if ($funGame->isDouble())
+                                <x-team-picker :teams="$funGame->teams" name="runner_up_team_id" label="Pasangan Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_team_id', '')" exclude="[championId, thirdId]" />
+                            @else
+                                <x-player-picker :players="$members" name="runner_up_id" label="Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_id', '')" exclude="[championId, thirdId]" />
+                            @endif
                         </div>
 
                         <!-- Juara 3 -->
                         <div>
-                            <x-player-picker :players="$members" name="third_place_id" label="Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_id', '')" exclude="[championId, runnerId]"  />
+                            @if ($funGame->isDouble())
+                                <x-team-picker :teams="$funGame->teams" name="third_place_team_id" label="Pasangan Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_team_id', '')" exclude="[championId, runnerId]" />
+                            @else
+                                <x-player-picker :players="$members" name="third_place_id" label="Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_id', '')" exclude="[championId, runnerId]" />
+                            @endif
                         </div>
 
                         <p class="text-[11px] text-[#888e9b] pt-1">
-                            Menutup event akan mengunci penambahan match dan menganugerahkan badge Champion ke Juara 1.
+                            Menutup event akan mengunci perubahan match dan pasangan. {{ $funGame->isDouble() ? 'Kedua anggota pasangan mendapat prestasi podium masing-masing.' : 'Juara 1 mendapat lencana Champion.' }}
                         </p>
 
                         <button 

@@ -58,11 +58,11 @@
 
             <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-[#2e313a]">
                 <div class="rounded-2xl bg-[#16171a] border border-[#2e313a] p-4">
-                    <dt class="text-xs text-[#959595]">Win Rate</dt>
+                    <dt class="text-xs text-[#959595]">Win Rate Single</dt>
                     <dd class="text-2xl font-bold text-[#dea538] mt-1">{{ $stats['win_rate'] }}%</dd>
                 </div>
                 <div class="rounded-2xl bg-[#16171a] border border-[#2e313a] p-4">
-                    <dt class="text-xs text-[#959595]">Match Tercatat</dt>
+                    <dt class="text-xs text-[#959595]">Match Single</dt>
                     <dd class="text-2xl font-bold text-white mt-1">{{ $stats['total_matches'] }}</dd>
                 </div>
                 <div class="rounded-2xl bg-[#16171a] border border-[#2e313a] p-4">
@@ -120,14 +120,14 @@
                 <div class="space-y-3">
                     @foreach ($recentMatches as $match)
                         @php
-                            $isWinner = $match->winner_id === $member->id;
+                            $isWinner = $match->wonBy($member->id);
                             $isPlayerOne = $match->player1_id === $member->id;
                             $opponent = $isPlayerOne ? $match->player2 : $match->player1;
                         @endphp
                         <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#16171a] border border-[#2e313a]">
                             <div class="min-w-0">
-                                <p class="text-sm font-bold text-white truncate">vs {{ $opponent->name }}</p>
-                                <p class="text-xs text-[#888e9b] mt-0.5 truncate">{{ $match->funGame->title }} &bull; {{ $match->stage ?? 'Fun Game Match' }}</p>
+                                <p class="text-sm font-bold text-white {{ $match->isDouble() ? 'line-clamp-2' : 'truncate' }}">{{ $match->isDouble() ? $match->sideName(1).' vs '.$match->sideName(2) : 'vs '.$opponent->name }}</p>
+                                <p class="text-xs text-[#888e9b] mt-0.5 truncate">{{ $match->funGame->title }} &bull; {{ $match->isDouble() ? 'Double · ' : '' }}{{ $match->stage ?? 'Fun Game Match' }}</p>
                             </div>
                             <div class="text-right shrink-0">
                                 <p class="text-base font-bold {{ $isWinner ? 'text-emerald-400' : 'text-rose-400' }}"><x-match-score :match="$match" :player-id="$member->id" /></p>

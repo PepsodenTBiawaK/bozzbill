@@ -161,7 +161,7 @@ class RosterController extends Controller
         $wins = $user->totalWinsCount();
 
         $recentMatches = $user->allMatches()
-            ->with(['player1', 'player2', 'winner', 'funGame'])
+            ->with(['player1', 'player2', 'winner', 'funGame', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2', 'winnerTeam'])
             ->latest()
             ->latest('id')
             ->take(5)

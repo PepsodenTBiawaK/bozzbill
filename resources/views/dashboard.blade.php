@@ -88,9 +88,9 @@
                         <div class="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#16171a] border border-[#2e313a]">
                             <div class="min-w-0">
                                 <p class="text-sm font-bold text-white truncate">
-                                    <span class="{{ $match->winner_id === $match->player1_id ? 'text-emerald-400' : 'text-white' }}">{{ $match->player1->name }}</span>
+                                    <span class="{{ ($match->isDouble() ? $match->winner_team_id === $match->team1_id : $match->winner_id === $match->player1_id) ? 'text-emerald-400' : 'text-white' }}">{{ $match->sideName(1) }}</span>
                                     <span class="text-xs font-normal text-[#888e9b]">vs</span>
-                                    <span class="{{ $match->winner_id === $match->player2_id ? 'text-emerald-400' : 'text-white' }}">{{ $match->player2->name }}</span>
+                                    <span class="{{ ($match->isDouble() ? $match->winner_team_id === $match->team2_id : $match->winner_id === $match->player2_id) ? 'text-emerald-400' : 'text-white' }}">{{ $match->sideName(2) }}</span>
                                 </p>
                                 <p class="text-xs text-[#888e9b] mt-1 truncate">{{ $match->funGame->title }} &bull; {{ $match->stage ?: 'Penyisihan' }}</p>
                                 <p class="text-xs text-[#959595] mt-1">

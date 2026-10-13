@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MatchLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -27,11 +26,8 @@ class HomeController extends Controller
         $recentFunGames = $user->recentFunGamesSummary(4);
 
         // Recent matches for the user
-        $recentMatches = MatchLog::with(['player1', 'player2', 'winner', 'funGame'])
-            ->where(function ($query) use ($user): void {
-                $query->where('player1_id', $user->id)
-                    ->orWhere('player2_id', $user->id);
-            })
+        $recentMatches = $user->allMatches()
+            ->with(['player1', 'player2', 'winner', 'funGame', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2', 'winnerTeam'])
             ->latest()
             ->take(5)
             ->get();

@@ -66,3 +66,21 @@ test('handicap search and optional clearing keep visible text and submitted sele
     assert.equal(picker.selectedId, '');
     assert.equal(picker.open, false);
 });
+
+test('pair selection can find either member or handicap and excludes the opposing pair', () => {
+    const picker = playerPicker([
+        { id: 12, name: 'Fadil & Hafiz', handicap: '3A / 3N' },
+        { id: 34, name: 'Andrew & Fitrah', handicap: '3B / 3N' },
+    ]);
+    picker.query = 'hafiz';
+    picker.search();
+
+    assert.deepEqual(picker.options().map((team) => team.id), ['12']);
+    picker.chooseActive();
+    assert.equal(picker.query, 'Fadil & Hafiz');
+    assert.equal(picker.selectedId, '12');
+    picker.setRestrictions(['12']);
+    picker.query = '3n';
+    picker.search();
+    assert.deepEqual(picker.options().map((team) => team.id), ['34']);
+});

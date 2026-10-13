@@ -15,6 +15,7 @@ class FunGame extends Model
 
     protected $fillable = [
         'title',
+        'format',
         'event_date',
         'status',
         'champion_id',
@@ -38,6 +39,16 @@ class FunGame extends Model
         return $this->hasMany(MatchLog::class);
     }
 
+    public function teams(): HasMany
+    {
+        return $this->hasMany(FunGameTeam::class);
+    }
+
+    public function isDouble(): bool
+    {
+        return $this->format === 'double';
+    }
+
     public function podiumPlayers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'fun_game_podium')
@@ -46,7 +57,7 @@ class FunGame extends Model
 
     public function podiumName(int $position): string
     {
-        if ($this->format === 'double') {
+        if ($this->isDouble()) {
             return $this->podiumPlayers->where('pivot.position', $position)->pluck('name')->implode(' & ') ?: '-';
         }
 

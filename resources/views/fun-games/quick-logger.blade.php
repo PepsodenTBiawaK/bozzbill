@@ -1,43 +1,34 @@
 <x-layouts.app>
-    <div 
-        x-data="{
-            p1Id: @js((string) old('player1_id', '')),
-            p2Id: @js((string) old('player2_id', '')),
-            p1Score: @js((int) old('player1_score', 0)),
-            p2Score: @js((int) old('player2_score', 0)),
-            winnerId: @js((string) old('winner_id', '')),
-            stage: 'Penyisihan',
-            members: {{ Js::from($members) }},
-
-            getP1() {
-                return this.members.find(m => m.id == this.p1Id);
-            },
-            getP2() {
-                return this.members.find(m => m.id == this.p2Id);
-            },
-            updateWinner() {
-                if (this.p1Score > this.p2Score) {
-                    this.winnerId = this.p1Id;
-                } else if (this.p2Score > this.p1Score) {
-                    this.winnerId = this.p2Id;
-                } else {
-                    this.winnerId = '';
-                }
-            }
-        }"
-        x-init="$watch('p1Score', () => updateWinner()); $watch('p2Score', () => updateWinner()); $watch('p1Id', () => updateWinner()); $watch('p2Id', () => updateWinner())"
+    @php
+        $participants = $event->isDouble()
+            ? $event->teams->map(fn ($team) => ['id' => $team->id, 'name' => $team->displayName(), 'handicap' => $team->player1->handicap->value.' / '.$team->player2->handicap->value])->values()->all()
+            : $members->map(fn ($member) => ['id' => $member->id, 'name' => $member->name, 'handicap' => $member->handicap->value])->values()->all();
+        $firstField = $event->isDouble() ? 'team1_id' : 'player1_id';
+        $secondField = $event->isDouble() ? 'team2_id' : 'player2_id';
+        $winnerField = $event->isDouble() ? 'winner_team_id' : 'winner_id';
+        $recorderValues = [
+            'p1Id' => (string) old($firstField, ''),
+            'p2Id' => (string) old($secondField, ''),
+            'p1Score' => (int) old('player1_score', 0),
+            'p2Score' => (int) old('player2_score', 0),
+            'winnerId' => (string) old($winnerField, ''),
+            'stage' => old('stage', 'Penyisihan'),
+        ];
+    @endphp
+    <div
+        x-data="matchRecorder(@js($participants), @js($recorderValues))"
         class="max-w-4xl mx-auto space-y-6 sm:space-y-8"
     >
         
         <!-- Header -->
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
                 <div class="flex items-center gap-2 mb-1">
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold uppercase tracking-wider">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         Live Meja
                     </span>
-                    <span class="text-xs text-[#888e9b]">&bull; {{ $event->title }}</span>
+                    <span class="text-xs text-[#888e9b]">&bull; {{ $event->title }} &bull; {{ $event->isDouble() ? 'Double' : 'Single' }}</span>
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Quick Match Logger</h1>
                 <p class="text-xs sm:text-sm text-[#959595] mt-0.5">Input hasil pertandingan biliar langsung di pinggir meja hitungan detik.</p>
@@ -68,6 +59,13 @@
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
+            </div>
+        @endif
+
+        @if ($event->isDouble() && $event->teams->count() < 2)
+            <div class="rounded-2xl border border-[#dea538]/30 bg-[#dea538]/5 p-4 text-sm text-[#d4d4d4]">
+                Susun minimal dua pasangan sebelum mencatat match double.
+                <a href="{{ route('fun-games.show', $event) }}#event-teams" class="font-semibold text-[#dea538] hover:underline">Atur Pasangan</a>
             </div>
         @endif
 
@@ -104,7 +102,7 @@
                     <!-- Player 1 Box (md:col-span-5) -->
                     <div class="md:col-span-5 bg-[#16171a] border rounded-2xl p-4 sm:p-5 transition" :class="winnerId == p1Id && p1Id ? 'border-emerald-500/60 ring-1 ring-emerald-500/40' : 'border-[#2e313a]'">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-bold uppercase tracking-wider text-[#888e9b]">Pemain 1</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#888e9b]">{{ $event->isDouble() ? 'Tim 1' : 'Pemain 1' }}</span>
                             <template x-if="getP1()">
                                 <span class="px-2 py-0.5 rounded bg-[#dea538]/10 text-[#dea538] text-xs font-black" x-text="'HC ' + getP1().handicap"></span>
                             </template>
@@ -112,7 +110,11 @@
 
                         <!-- Player 1 Selector -->
                         <div class="mb-4">
-                            <x-player-picker :players="$members" name="player1_id" label="Cari Pemain 1" x-model="p1Id" :value="old('player1_id', '')" exclude="[p2Id]" required />
+                            @if ($event->isDouble())
+                                <x-team-picker :teams="$event->teams" name="team1_id" label="Cari Tim 1" x-model="p1Id" :value="old('team1_id', '')" exclude="[p2Id]" required />
+                            @else
+                                <x-player-picker :players="$members" name="player1_id" label="Cari Pemain 1" x-model="p1Id" :value="old('player1_id', '')" exclude="[p2Id]" required />
+                            @endif
                         </div>
 
                         <!-- Player 1 Score Stepper -->
@@ -130,7 +132,7 @@
                                 <input 
                                     type="number" 
                                     name="player1_score" 
-                                    x-model="p1Score" 
+                                    x-model.number="p1Score" inputmode="numeric" required
                                     min="0" 
                                     max="50" 
                                     class="w-16 text-center text-3xl sm:text-4xl font-black text-white bg-transparent outline-none"
@@ -138,7 +140,7 @@
 
                                 <button 
                                     type="button" 
-                                    @click="p1Score = p1Score + 1" 
+                                    @click="p1Score = Math.min(50, p1Score + 1)"
                                     class="w-11 h-11 rounded-xl bg-[#202227] hover:bg-[#2b2e35] text-white border border-[#333741] font-bold text-lg flex items-center justify-center active:scale-95 transition cursor-pointer"
                                 >
                                     &#43;
@@ -146,8 +148,11 @@
                             </div>
                         </div>
 
-                        <!-- Winner indicator button -->
                         <div class="mt-4 pt-3 border-t border-[#252830] text-center">
+                            @if ($event->isDouble())
+                                <p class="py-1.5 text-xs font-bold" :class="winnerId === p1Id && p1Id ? 'text-emerald-300' : 'text-[#888e9b]'" x-text="winnerId === p1Id && p1Id ? 'Pemenang Match' : 'Pemenang mengikuti skor'"></p>
+                            @else
+
                             <button 
                                 type="button" 
                                 @click="winnerId = p1Id" 
@@ -157,6 +162,8 @@
                             >
                                 <span x-text="winnerId == p1Id && p1Id ? '&#10003; Pemenang Match' : 'Pilih Jadi Pemenang'"></span>
                             </button>
+
+                            @endif
                         </div>
                     </div>
 
@@ -170,7 +177,7 @@
                     <!-- Player 2 Box (md:col-span-5) -->
                     <div class="md:col-span-5 bg-[#16171a] border rounded-2xl p-4 sm:p-5 transition" :class="winnerId == p2Id && p2Id ? 'border-emerald-500/60 ring-1 ring-emerald-500/40' : 'border-[#2e313a]'">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-bold uppercase tracking-wider text-[#888e9b]">Pemain 2</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#888e9b]">{{ $event->isDouble() ? 'Tim 2' : 'Pemain 2' }}</span>
                             <template x-if="getP2()">
                                 <span class="px-2 py-0.5 rounded bg-[#dea538]/10 text-[#dea538] text-xs font-black" x-text="'HC ' + getP2().handicap"></span>
                             </template>
@@ -178,7 +185,11 @@
 
                         <!-- Player 2 Selector -->
                         <div class="mb-4">
-                            <x-player-picker :players="$members" name="player2_id" label="Cari Pemain 2" x-model="p2Id" :value="old('player2_id', '')" exclude="[p1Id]" required />
+                            @if ($event->isDouble())
+                                <x-team-picker :teams="$event->teams" name="team2_id" label="Cari Tim 2" x-model="p2Id" :value="old('team2_id', '')" exclude="[p1Id]" required />
+                            @else
+                                <x-player-picker :players="$members" name="player2_id" label="Cari Pemain 2" x-model="p2Id" :value="old('player2_id', '')" exclude="[p1Id]" required />
+                            @endif
                         </div>
 
                         <!-- Player 2 Score Stepper -->
@@ -196,7 +207,7 @@
                                 <input 
                                     type="number" 
                                     name="player2_score" 
-                                    x-model="p2Score" 
+                                    x-model.number="p2Score" inputmode="numeric" required
                                     min="0" 
                                     max="50" 
                                     class="w-16 text-center text-3xl sm:text-4xl font-black text-white bg-transparent outline-none"
@@ -204,7 +215,7 @@
 
                                 <button 
                                     type="button" 
-                                    @click="p2Score = p2Score + 1" 
+                                    @click="p2Score = Math.min(50, p2Score + 1)"
                                     class="w-11 h-11 rounded-xl bg-[#202227] hover:bg-[#2b2e35] text-white border border-[#333741] font-bold text-lg flex items-center justify-center active:scale-95 transition cursor-pointer"
                                 >
                                     &#43;
@@ -212,8 +223,11 @@
                             </div>
                         </div>
 
-                        <!-- Winner indicator button -->
                         <div class="mt-4 pt-3 border-t border-[#252830] text-center">
+                            @if ($event->isDouble())
+                                <p class="py-1.5 text-xs font-bold" :class="winnerId === p2Id && p2Id ? 'text-emerald-300' : 'text-[#888e9b]'" x-text="winnerId === p2Id && p2Id ? 'Pemenang Match' : 'Pemenang mengikuti skor'"></p>
+                            @else
+
                             <button 
                                 type="button" 
                                 @click="winnerId = p2Id" 
@@ -223,13 +237,15 @@
                             >
                                 <span x-text="winnerId == p2Id && p2Id ? '&#10003; Pemenang Match' : 'Pilih Jadi Pemenang'"></span>
                             </button>
+
+                            @endif
                         </div>
                     </div>
 
                 </div>
 
                 <!-- Hidden Input Winner ID -->
-                <input type="hidden" name="winner_id" :value="winnerId" />
+                <input type="hidden" name="{{ $winnerField }}" :value="winnerId" />
 
                 <!-- Submit Button -->
                 <button 
@@ -257,15 +273,15 @@
                                 {{ $loop->iteration }}
                             </span>
                             <div class="min-w-0">
-                                <p class="text-xs sm:text-sm font-bold text-white truncate">
-                                    <span class="{{ $m->winner_id == $m->player1_id ? 'text-emerald-400 font-extrabold' : 'text-[#d4d4d4]' }}">{{ $m->player1->name }}</span>
+                                <p class="text-xs sm:text-sm font-bold text-white break-words">
+                                    <span class="{{ ($m->isDouble() ? $m->winner_team_id == $m->team1_id : $m->winner_id == $m->player1_id) ? 'text-emerald-400 font-extrabold' : 'text-[#d4d4d4]' }}">{{ $m->sideName(1) }}</span>
                                     <span class="text-xs text-[#787e8c] font-normal">({{ $m->player1_score }})</span>
                                     <span class="text-xs text-[#888e9b] mx-1">vs</span>
-                                    <span class="{{ $m->winner_id == $m->player2_id ? 'text-emerald-400 font-extrabold' : 'text-[#d4d4d4]' }}">{{ $m->player2->name }}</span>
+                                    <span class="{{ ($m->isDouble() ? $m->winner_team_id == $m->team2_id : $m->winner_id == $m->player2_id) ? 'text-emerald-400 font-extrabold' : 'text-[#d4d4d4]' }}">{{ $m->sideName(2) }}</span>
                                     <span class="text-xs text-[#787e8c] font-normal">({{ $m->player2_score }})</span>
                                 </p>
                                 <p class="text-[11px] text-[#787e8c] mt-0.5">
-                                    {{ $m->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $m->winner->name }}</strong>
+                                    {{ $m->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $m->winnerName() }}</strong>
                                 </p>
                             </div>
                         </div>

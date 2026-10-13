@@ -63,11 +63,11 @@
                             <span class="text-xs font-bold text-[#dea538]">{{ $user->handicap->value }}</span>
                         </div>
                         <div class="px-3 py-1.5 rounded-xl bg-[#16171a] border border-[#333741] flex items-center gap-2">
-                            <span class="text-[11px] text-[#888e9b]">Win Rate:</span>
+                            <span class="text-[11px] text-[#888e9b]">Win Rate Single:</span>
                             <span class="text-xs font-bold text-emerald-400">{{ $user->winRatePercentage() }}%</span>
                         </div>
                         <div class="px-3 py-1.5 rounded-xl bg-[#16171a] border border-[#333741] flex items-center gap-2">
-                            <span class="text-[11px] text-[#888e9b]">Total Match:</span>
+                            <span class="text-[11px] text-[#888e9b]">Match Single:</span>
                             <span class="text-xs font-bold text-white">{{ $user->totalMatchesCount() }}</span>
                         </div>
                     </div>

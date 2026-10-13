@@ -90,7 +90,7 @@ test('an ongoing event cannot be removed through the history deletion endpoint',
     $this->assertDatabaseHas('match_logs', ['id' => $match->id]);
 });
 
-test('deleting one event preserves other history and badges still supported by single or double titles', function (string $format) {
+test('deleting one event preserves other history and badges still supported by single or double titles', function (string $format, int $individualMatches, bool $giantKillerEligible) {
     $this->seed(ProductionSeeder::class);
     ['actor' => $actor, 'player1' => $p1, 'event' => $event, 'match' => $match] = deletableHistoryFixture();
     $p1->badges()->attach(Badge::whereIn('slug', ['champion', 'giant-killer'])->pluck('id'));
@@ -105,12 +105,13 @@ test('deleting one event preserves other history and badges still supported by s
     $this->actingAs($actor)->delete(route('fun-games.destroy', $event), ['delete_confirmation' => 'HAPUS'])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('fun_games', ['id' => $remaining->id]);
     expect($otherMatch->fresh()->getAttributes())->toBe($original);
-    expect($p1->totalMatchesCount())->toBe(1);
-    expect($p1->totalWinsCount())->toBe(1);
+    expect($p1->allMatches()->count())->toBe(1);
+    expect($p1->totalMatchesCount())->toBe($individualMatches);
+    expect($p1->totalWinsCount())->toBe($individualMatches);
     expect($p1->funGamesParticipatedCount())->toBe(1);
     expect($p1->badges()->where('slug', 'champion')->exists())->toBeTrue();
-    expect($p1->badges()->where('slug', 'giant-killer')->exists())->toBeTrue();
-})->with(['single', 'double']);
+    expect($p1->badges()->where('slug', 'giant-killer')->exists())->toBe($giantKillerEligible);
+})->with(['single' => ['single', 1, true], 'double' => ['double', 0, false]]);
 
 test('deleting a double event updates both champions without touching runner up badges or other titles', function () {
     $this->seed(ProductionSeeder::class);

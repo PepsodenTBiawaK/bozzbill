@@ -70,7 +70,7 @@ class DashboardController extends Controller
                 ])->count(),
             ],
             'activeEvent' => $activeEvent,
-            'recentMatches' => MatchLog::with(['player1', 'player2', 'winner', 'funGame', 'recorder'])
+            'recentMatches' => MatchLog::with(['player1', 'player2', 'winner', 'funGame', 'recorder', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2'])
                 ->latest()
                 ->latest('id')
                 ->take(5)
