@@ -15,7 +15,7 @@
                 Evaluasi Handicap
             </h1>
             <p class="text-sm sm:text-base text-[#9ca3af] mt-1">
-                Berdasarkan 4 Fun Games terakhir yang telah selesai
+                Hingga 8 Fun Game single yang diikuti pada HC saat ini. Keputusan tetap di tangan pengurus.
             </p>
         </div>
 
@@ -105,6 +105,15 @@
                     <p class="text-xs sm:text-sm text-[#d4d4d4] font-medium leading-relaxed">
                         {{ $data['evidence'] }}
                     </p>
+                    <div class="flex flex-wrap gap-2 text-xs text-[#959595]">
+                        <span class="rounded-lg bg-[#16171a] px-2.5 py-1.5">{{ $data['total_matches'] }}/20 match</span>
+                        <span class="rounded-lg bg-[#16171a] px-2.5 py-1.5">{{ $data['events_count'] }}/4 event minimum</span>
+                        <span class="rounded-lg bg-[#16171a] px-2.5 py-1.5">{{ $data['opponents_count'] }}/5 lawan berbeda</span>
+                    </div>
+                    @if ($data['missing'])
+                        <p class="text-xs text-amber-300">{{ implode(' · ', $data['missing']) }}</p>
+                    @endif
+                    @include('admin.evaluations.evidence', ['data' => $data])
 
                     <!-- Recommendation Pill -->
                     <div>
@@ -140,7 +149,7 @@
                                 @csrf
                                 <input type="hidden" name="decision" value="promote">
                                 <input type="hidden" name="new_hc" value="{{ $data['suggested_hc']->value }}">
-                                <input type="hidden" name="reason" value="Evaluasi 4 Event Resmi: {{ $data['evidence'] }}">
+                                <input type="hidden" name="reason" value="Evaluasi HC: {{ $data['evidence'] }}">
                                 <button 
                                     type="submit" 
                                     class="w-full py-3 px-4 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] font-bold text-xs sm:text-sm transition cursor-pointer shadow-md text-center"
@@ -168,7 +177,7 @@
                                 @csrf
                                 <input type="hidden" name="decision" value="demote">
                                 <input type="hidden" name="new_hc" value="{{ $data['suggested_hc']->value }}">
-                                <input type="hidden" name="reason" value="Evaluasi 4 Event Resmi: {{ $data['evidence'] }}">
+                                <input type="hidden" name="reason" value="Evaluasi HC: {{ $data['evidence'] }}">
                                 <button 
                                     type="submit" 
                                     class="w-full py-3 px-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs sm:text-sm transition cursor-pointer shadow-md text-center"

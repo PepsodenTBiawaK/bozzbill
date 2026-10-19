@@ -9,6 +9,7 @@ use App\Models\FunGame;
 use App\Models\MatchLog;
 use App\Models\PlayerDrill;
 use App\Models\User;
+use App\WinRateRanking;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -21,7 +22,7 @@ class DashboardController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $members = User::query()->get(['id', 'handicap', 'is_active']);
+        $members = User::query()->with('hcHistories')->get(['id', 'handicap', 'is_active']);
         $activeMembers = $members->where('is_active', true);
 
         $activeEvent = FunGame::where('status', FunGameStatus::Open)
@@ -30,14 +31,7 @@ class DashboardController extends Controller
             ->latest('id')
             ->first();
 
-        $recentEventIds = FunGame::where('status', FunGameStatus::Completed)
-            ->where('format', 'single')
-            ->latest('event_date')
-            ->latest('id')
-            ->take(4)
-            ->pluck('id');
-
-        $evaluationMatches = MatchLog::whereIn('fun_game_id', $recentEventIds)->get();
+        $evaluationMatches = WinRateRanking::completedSingles()->with('funGame')->get();
         $matchesAsPlayerOne = $evaluationMatches->groupBy('player1_id');
         $matchesAsPlayerTwo = $evaluationMatches->groupBy('player2_id');
         $recommendationCounts = ['promote' => 0, 'demote' => 0, 'watch' => 0, 'stay' => 0];

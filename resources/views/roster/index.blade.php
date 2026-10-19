@@ -132,6 +132,13 @@
                 </p> -->
             @endif
 
+            @if ($sort === 'win_rate')
+                <details class="rounded-2xl border border-[#333741] bg-[#202227] p-4 text-xs text-[#959595]">
+                    <summary class="min-h-11 flex items-center font-semibold text-[#dea538] cursor-pointer">Cara Peringkat Win Rate Dihitung</summary>
+                    <p class="pt-2 leading-relaxed">Minimum 10 match single dari 3 event selesai. Urutan memakai Wilson score yang mempertimbangkan jumlah pertandingan. Persentase yang tampil tetap win rate asli dari match yang tercatat. Hasil event aktif dan double tidak masuk peringkat ini; histori yang belum lengkap hanya mewakili match yang sudah tercatat.</p>
+                </details>
+            @endif
+            @if ($sort !== 'win_rate' || $podium['first'])
             <!-- Podium Top 3 Players Card (Figma Node 189:5305) -->
             <div class="bg-[#202227] border border-[#333741] rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
                 
@@ -158,9 +165,12 @@
                                 @elseif ($sort === 'most_drills')
                                     {{ $p2['drills_count'] }}x Drill
                                 @else
-                                    Win Rate {{ $p2['win_rate'] }}%
+                                    Win Rate {{ $p2['ranking_win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'win_rate')
+                                <p class="text-[10px] text-[#888e9b] mt-1">{{ $p2['ranking_wins'] }}/{{ $p2['ranking_matches'] }} menang &bull; {{ $p2['ranking_events'] }} event</p>
+                            @endif
                             @if ($sort === 'most_podium')
                                 <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p2['user']->name }}">
                                     <span class="text-[#dea538]" title="Juara 1">J1 {{ $p2['champion_count'] }}</span>
@@ -202,9 +212,12 @@
                                 @elseif ($sort === 'most_drills')
                                     {{ $p1['drills_count'] }}x Drill
                                 @else
-                                    Win Rate {{ $p1['win_rate'] }}%
+                                    Win Rate {{ $p1['ranking_win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'win_rate')
+                                <p class="text-[10px] text-[#888e9b] mt-1">{{ $p1['ranking_wins'] }}/{{ $p1['ranking_matches'] }} menang &bull; {{ $p1['ranking_events'] }} event</p>
+                            @endif
                             @if ($sort === 'most_podium')
                                 <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p1['user']->name }}">
                                     <span class="text-[#dea538]" title="Juara 1">J1 {{ $p1['champion_count'] }}</span>
@@ -238,9 +251,12 @@
                                 @elseif ($sort === 'most_drills')
                                     {{ $p3['drills_count'] }}x Drill
                                 @else
-                                    Win Rate {{ $p3['win_rate'] }}%
+                                    Win Rate {{ $p3['ranking_win_rate'] }}%
                                 @endif
                             </p>
+                            @if ($sort === 'win_rate')
+                                <p class="text-[10px] text-[#888e9b] mt-1">{{ $p3['ranking_wins'] }}/{{ $p3['ranking_matches'] }} menang &bull; {{ $p3['ranking_events'] }} event</p>
+                            @endif
                             @if ($sort === 'most_podium')
                                 <p class="flex flex-wrap justify-center gap-x-1.5 text-[10px] text-[#888e9b] mt-1" aria-label="Rincian podium {{ $p3['user']->name }}">
                                     <span class="text-[#dea538]" title="Juara 1">J1 {{ $p3['champion_count'] }}</span>
@@ -256,6 +272,8 @@
                 </div>
 
             </div>
+
+            @endif
 
             <!-- Rankings List (Rank 4+) (Figma Node 189:5331) -->
             <div class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
@@ -295,7 +313,7 @@
                                             <span title="Juara 2">J2 {{ $item['runner_up_count'] }}</span> &bull;
                                             <span title="Juara 3">J3 {{ $item['third_place_count'] }}</span>
                                         @else
-                                            {{ $item['total_matches'] }} tanding &bull; {{ $item['wins'] }} menang
+                                            {{ $sort === 'win_rate' ? $item['ranking_matches'] : $item['total_matches'] }} tanding &bull; {{ $sort === 'win_rate' ? $item['ranking_wins'] : $item['wins'] }} menang
                                         @endif
                                     </p>
                                 </div>
@@ -310,7 +328,7 @@
                                     @elseif ($sort === 'most_drills')
                                         {{ $item['drills_count'] }}x Drill
                                     @else
-                                        {{ $item['win_rate'] }}%
+                                        {{ $item['ranking_win_rate'] }}%
                                     @endif
                                 </div>
                             </div>
@@ -318,13 +336,16 @@
                         </div>
                     @empty
                         <div class="py-6 text-center text-xs text-[#888e9b]">
-                            Semua anggota telah masuk dalam jajaran Podium Top 3.
+                            {{ $sort === 'win_rate' && ! $podium['first'] ? 'Belum ada pemain yang memenuhi minimum peringkat.' : 'Semua pemain yang memenuhi syarat sudah tampil di podium.' }}
                         </div>
                     @endforelse
                 </div>
 
             </div>
 
+            @if ($sort === 'win_rate' && $unrankedMembers->isNotEmpty())
+                @include('roster.unranked', ['players' => $unrankedMembers])
+            @endif
         </div>
 
         <!-- ================= TAB 2: ROSTER ANGGOTA (Figma Node 189:5432) ================= -->

@@ -7,7 +7,15 @@
         $participantLabel = $funGame->isDouble() ? 'Tim' : 'Pemain';
         $participants = $funGame->isDouble()
             ? $funGame->teams->map(fn ($team) => ['id' => $team->id, 'name' => $team->displayName()])->values()->all()
-            : $members->map(fn ($member) => ['id' => $member->id, 'name' => $member->name])->values()->all();
+            : $members->map(function ($member) use ($match) {
+                $hc = $member->id === $match->player1_id ? $match->player1_hc : ($member->id === $match->player2_id ? $match->player2_hc : $member->handicap);
+                return ['id' => $member->id, 'name' => $member->name, 'handicapRank' => $hc?->rank()];
+            })->values()->all();
+        $recorderOptions = ['format' => $funGame->format, 'voorLabels' => \App\Enums\MatchVoor::labels(), 'autoWinner' => $usesScoreWinner];
+        if (! $funGame->isDouble()) {
+            $recorderOptions['originalIds'] = [(string) $match->player1_id, (string) $match->player2_id];
+            $recorderOptions['originalVoor'] = $match->voorSummary();
+        }
         $recorderValues = [
             'p1Id' => (string) old($participantField.'1_id', $match->{$participantField.'1_id'}),
             'p2Id' => (string) old($participantField.'2_id', $match->{$participantField.'2_id'}),
@@ -45,14 +53,17 @@
             </section>
         @endif
         <form method="POST" action="{{ route('fun-games.matches.update', [$funGame, $match]) }}"
-            @if ($usesScoreWinner)
-                x-data="matchRecorder(@js($participants), @js($recorderValues))"
-            @else
-                x-data="@js($recorderValues)"
-            @endif
+            x-data="matchRecorder(@js($participants), @js($recorderValues), @js($recorderOptions))"
             class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6 space-y-5">
             @csrf
             @method('PUT')
+            <div class="rounded-xl border border-[#333741] bg-[#16171a] px-3 py-2.5 space-y-1" aria-live="polite">
+                @unless ($funGame->isDouble())
+                    <p class="text-xs font-semibold text-[#dea538]" x-text="voorPreview"></p>
+                    <p class="text-[11px] text-[#888e9b]">Skor akhir termasuk frame pemberian. HC peserta lama mengikuti catatan awal.</p>
+                @endunless
+                <p class="text-xs text-[#959595]" x-text="racePreview"></p>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @foreach ([1, 2] as $side)
                     <div class="space-y-3">

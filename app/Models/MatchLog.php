@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Handicap;
+use App\Enums\MatchVoor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,8 @@ class MatchLog extends Model
         'player2_hc',
         'stage',
         'recorded_by',
+        'voor_type',
+        'voor_recipient_id',
     ];
 
     protected function casts(): array
@@ -35,6 +38,8 @@ class MatchLog extends Model
             'player2_score' => 'integer',
             'player1_hc' => Handicap::class,
             'player2_hc' => Handicap::class,
+            'voor_type' => MatchVoor::class,
+            'voor_recipient_id' => 'integer',
         ];
     }
 
@@ -57,7 +62,7 @@ class MatchLog extends Model
         foreach ([
             'player1_id', 'player2_id', 'team1_id', 'team2_id',
             'player1_score', 'player2_score', 'winner_id', 'winner_team_id',
-            'player1_hc', 'player2_hc', 'stage',
+            'player1_hc', 'player2_hc', 'stage', 'voor_type', 'voor_recipient_id',
         ] as $field) {
             $value = $attributes[$field] ?? null;
             $values[$field] = $value !== null && (str_ends_with($field, '_id') || str_ends_with($field, '_score'))
@@ -112,6 +117,40 @@ class MatchLog extends Model
     public function isDouble(): bool
     {
         return $this->team1_id !== null || $this->team2_id !== null;
+    }
+
+    public function inferredRace(): ?int
+    {
+        if (! $this->hasRecordedScore() || $this->player1_score === $this->player2_score
+            || ($this->isDouble()
+                ? ! in_array($this->winner_team_id, array_filter([$this->team1_id, $this->team2_id]), true)
+                : ! in_array($this->winner_id, array_filter([$this->player1_id, $this->player2_id]), true))) {
+            return null;
+        }
+
+        $score = $this->winnerScore();
+
+        return in_array($score, [3, 4, 5], true) && $score === max($this->player1_score, $this->player2_score)
+            ? $score : null;
+    }
+
+    public function voorSummary(): string
+    {
+        if ($this->isDouble()) {
+            return 'Tanpa Voor';
+        }
+
+        if ($this->voor_type === null) {
+            return 'Voor tidak tercatat';
+        }
+
+        if ($this->voor_type === MatchVoor::None) {
+            return $this->voor_type->label();
+        }
+
+        $recipient = $this->voor_recipient_id === $this->player1_id ? $this->player1 : $this->player2;
+
+        return $this->voor_type->label().' untuk '.($recipient?->name ?? 'anggota');
     }
 
     public function sideName(int $side): string

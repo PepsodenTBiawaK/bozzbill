@@ -101,8 +101,9 @@ test('history import preserves Fadil and saves distinct fixtures podium teams an
     expect($double->podiumPlayers()->count())->toBe(4);
     expect($double->podiumName(1))->toBe('Fadil & Partner');
     expect($double->podiumName(2))->toBe('Arya & Satrio');
-    expect($owner->fresh()->evaluateHandicap()['total_matches'])->toBe(4);
-    expect($owner->fresh()->evaluateHandicap()['wins'])->toBe(2);
+    expect($owner->fresh()->evaluateHandicap()['total_matches'])->toBe(0);
+    expect($owner->fresh()->evaluateHandicap()['wins'])->toBe(0);
+    expect($owner->fresh()->evaluateHandicap()['excluded_matches'])->toBe(4);
     expect($owner->fresh()->recentFunGamesSummary())->toHaveCount(4);
     expect($arya->recentFunGamesSummary()[1]['label'])->toBe('Belum tercatat');
     expect(HcHistory::whereNotNull('old_hc')->firstOrFail()->old_hc)->toBe(Handicap::ThreeB);

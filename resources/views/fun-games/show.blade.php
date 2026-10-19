@@ -175,6 +175,7 @@
                                     </span>
                                 </div>
 
+                                <x-match-context :match="$match" />
                                 <p class="text-xs text-[#787e8c] mt-1">
                                     {{ $match->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $match->winnerName() }}</strong>
                                     @if ($match->isGiantKiller())

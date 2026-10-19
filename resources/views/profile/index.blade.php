@@ -86,7 +86,7 @@
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h3 class="text-lg sm:text-xl font-bold text-white tracking-tight">Timeline Riwayat Handicap (HC)</h3>
-                    <p class="text-xs text-[#959595] mt-0.5">Transparansi keputusan pengurus berdasarkan evaluasi 4 Fun Game</p>
+                    <p class="text-xs text-[#959595] mt-0.5">Keputusan pengurus berdasarkan bukti pertandingan pada HC yang dijalani.</p>
                 </div>
                 <div class="px-3 py-1 rounded-full bg-[#dea538]/10 border border-[#dea538]/30 text-xs font-bold text-[#dea538]">
                     Saat Ini: HC {{ $user->handicap->value }}
@@ -135,7 +135,7 @@
                         <div class="absolute -left-6 sm:-left-8 top-1.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-4 border-[#202227]"></div>
                         <div class="p-4 rounded-2xl bg-[#16171a] border border-[#2e313a]">
                             <p class="text-xs sm:text-sm text-white font-semibold">Handicap Standar Anggota Baru: HC {{ $user->handicap->value }}</p>
-                            <p class="text-xs text-[#959595] mt-1">Evaluasi otomatis akan dikalkulasikan setelah Anda bermain di 4 event Fun Game resmi.</p>
+                            <p class="text-xs text-[#959595] mt-1">Rekomendasi mempertimbangkan minimal 20 match single, 4 event selesai, dan 5 lawan berbeda pada HC saat ini.</p>
                         </div>
                     </div>
                 @endforelse

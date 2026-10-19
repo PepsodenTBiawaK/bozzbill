@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FunGameStatus;
+use App\Enums\MatchVoor;
 use App\Models\Badge;
 use App\Models\FunGame;
 use App\Models\FunGameTeam;
@@ -709,17 +710,30 @@ class FunGameController extends Controller
                 'winner_id' => null,
                 'player1_hc' => null,
                 'player2_hc' => null,
+                'voor_type' => null,
+                'voor_recipient_id' => null,
             ];
         }
 
         $snapshots = $existing !== null ? [$existing->player1_id => $existing->player1_hc, $existing->player2_id => $existing->player2_hc] : [];
         $players = User::query()->whereIn('id', [$validated['player1_id'], $validated['player2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $firstHc = array_key_exists($validated['player1_id'], $snapshots) ? $snapshots[$validated['player1_id']] : $players->get($validated['player1_id'])->handicap;
+        $secondHc = array_key_exists($validated['player2_id'], $snapshots) ? $snapshots[$validated['player2_id']] : $players->get($validated['player2_id'])->handicap;
+        $voor = MatchVoor::between($firstHc, $secondHc);
+        $recipientId = $voor !== null && $voor !== MatchVoor::None
+            ? ($firstHc->isLowerThan($secondHc) ? $validated['player1_id'] : $validated['player2_id']) : null;
+        if ($existing !== null && count(array_intersect([$existing->player1_id, $existing->player2_id], [$validated['player1_id'], $validated['player2_id']])) === 2) {
+            $voor = $existing->voor_type;
+            $recipientId = $existing->voor_recipient_id;
+        }
 
         return [
             ...$validated,
             'stage' => $validated['stage'] ?? 'Penyisihan',
-            'player1_hc' => array_key_exists($validated['player1_id'], $snapshots) ? $snapshots[$validated['player1_id']] : $players->get($validated['player1_id'])->handicap,
-            'player2_hc' => array_key_exists($validated['player2_id'], $snapshots) ? $snapshots[$validated['player2_id']] : $players->get($validated['player2_id'])->handicap,
+            'player1_hc' => $firstHc,
+            'player2_hc' => $secondHc,
+            'voor_type' => $voor,
+            'voor_recipient_id' => $recipientId,
             'team1_id' => null,
             'team2_id' => null,
             'winner_team_id' => null,

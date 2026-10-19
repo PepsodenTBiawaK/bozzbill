@@ -2,7 +2,8 @@
     @php
         $participants = $event->isDouble()
             ? $event->teams->map(fn ($team) => ['id' => $team->id, 'name' => $team->displayName(), 'handicap' => $team->player1->handicap->value.' / '.$team->player2->handicap->value])->values()->all()
-            : $members->map(fn ($member) => ['id' => $member->id, 'name' => $member->name, 'handicap' => $member->handicap->value])->values()->all();
+            : $members->map(fn ($member) => ['id' => $member->id, 'name' => $member->name, 'handicap' => $member->handicap->value, 'handicapRank' => $member->handicap->rank()])->values()->all();
+        $recorderOptions = ['format' => $event->format, 'voorLabels' => \App\Enums\MatchVoor::labels()];
         $firstField = $event->isDouble() ? 'team1_id' : 'player1_id';
         $secondField = $event->isDouble() ? 'team2_id' : 'player2_id';
         $winnerField = $event->isDouble() ? 'winner_team_id' : 'winner_id';
@@ -16,7 +17,7 @@
         ];
     @endphp
     <div
-        x-data="matchRecorder(@js($participants), @js($recorderValues))"
+        x-data="matchRecorder(@js($participants), @js($recorderValues), @js($recorderOptions))"
         class="max-w-4xl mx-auto space-y-6 sm:space-y-8"
     >
         
@@ -98,6 +99,15 @@
                 </div>
 
                 <!-- Matchup Duel Grid (Player 1 vs Player 2) -->
+                <div class="rounded-xl border border-[#333741] bg-[#16171a] px-3 py-2.5 space-y-1" aria-live="polite">
+                    @unless ($event->isDouble())
+                        <p class="text-xs font-semibold text-[#dea538]" x-text="voorPreview"></p>
+                    @endunless
+                    <p class="text-xs text-[#959595]" x-text="racePreview"></p>
+                    @unless ($event->isDouble())
+                        <p class="text-[11px] text-[#888e9b]">Catat skor akhir termasuk frame pemberian jika memakai voor frame.</p>
+                    @endunless
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-11 gap-4 items-center">
                     
                     <!-- Player 1 Box (md:col-span-5) -->
@@ -284,6 +294,7 @@
                                 <p class="text-[11px] text-[#787e8c] mt-0.5">
                                     {{ $m->stage ?: 'Penyisihan' }} &bull; Pemenang: <strong class="text-emerald-400">{{ $m->winnerName() }}</strong>
                                 </p>
+                                <x-match-context :match="$m" />
                             </div>
                         </div>
 

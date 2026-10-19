@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use App\Enums\EvaluationRecommendation;
 use App\Enums\FunGameStatus;
 use App\Enums\Handicap;
 use App\Enums\UserRole;
+use App\HandicapEvaluator;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -480,66 +480,13 @@ class User extends Authenticatable
     }
 
     /**
-     * Evaluate handicap performance based on the last 4 completed Fun Games.
+     * Evaluate the current handicap using up to eight participated singles events.
      *
      * @param  Collection<int, MatchLog>|null  $matches
      * @return array<string, mixed>
      */
     public function evaluateHandicap(?Collection $matches = null): array
     {
-        if ($matches === null) {
-            $funGameIds = FunGame::where('status', FunGameStatus::Completed)
-                ->where('format', 'single')
-                ->latest('event_date')
-                ->latest('id')
-                ->take(4)
-                ->pluck('id');
-
-            $matches = MatchLog::whereIn('fun_game_id', $funGameIds)
-                ->where(function ($q): void {
-                    $q->where('player1_id', $this->id)
-                        ->orWhere('player2_id', $this->id);
-                })
-                ->get();
-        }
-
-        $totalMatches = $matches->count();
-        $wins = $matches->where('winner_id', $this->id)->count();
-        $losses = $totalMatches - $wins;
-        $winRate = $totalMatches > 0 ? round(($wins / $totalMatches) * 100, 1) : 0.0;
-
-        $winsVsHigher = $matches->where('winner_id', $this->id)
-            ->filter(fn (MatchLog $m): bool => $m->isGiantKiller())
-            ->count();
-
-        // Determine recommendation
-        if ($totalMatches < 3) {
-            $recommendation = EvaluationRecommendation::Watch;
-            $evidence = "Win Rate 4 Event: {$winRate}% ({$wins}W - {$losses}L) | Sampel match sedikit";
-            $suggestedHc = $this->handicap;
-        } elseif ($winRate >= 65.0 && $this->handicap->next() !== null) {
-            $recommendation = EvaluationRecommendation::Promote;
-            $suggestedHc = $this->handicap->next();
-            $evidence = "Win Rate 4 Event: {$winRate}% ({$wins}W - {$losses}L)".($winsVsHigher > 0 ? " | {$winsVsHigher}x Menang vs HC Lebih Tinggi" : '');
-        } elseif ($winRate <= 30.0 && $totalMatches >= 5 && $this->handicap->previous() !== null) {
-            $recommendation = EvaluationRecommendation::Demote;
-            $suggestedHc = $this->handicap->previous();
-            $evidence = "Win Rate 4 Event: {$winRate}% ({$wins}W - {$losses}L) | Performa menurun";
-        } else {
-            $recommendation = EvaluationRecommendation::Stay;
-            $suggestedHc = $this->handicap;
-            $evidence = "Win Rate 4 Event: {$winRate}% ({$wins}W - {$losses}L) | Konsisten di level saat ini";
-        }
-
-        return [
-            'total_matches' => $totalMatches,
-            'wins' => $wins,
-            'losses' => $losses,
-            'win_rate' => $winRate,
-            'wins_vs_higher' => $winsVsHigher,
-            'recommendation' => $recommendation,
-            'evidence' => $evidence,
-            'suggested_hc' => $suggestedHc,
-        ];
+        return app(HandicapEvaluator::class)->evaluate($this, $matches);
     }
 }

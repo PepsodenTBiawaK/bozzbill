@@ -60,7 +60,7 @@
 
             <section class="bg-[#202227] border border-[#333741] rounded-3xl p-5 sm:p-6">
                 <h2 class="text-lg font-bold text-white">Evaluasi Handicap</h2>
-                <p class="text-xs text-[#959595] mt-1">Rekomendasi dari empat Fun Game terakhir.</p>
+                <p class="text-xs text-[#959595] mt-1">Hingga 8 event single yang diikuti pada HC saat ini.</p>
                 <div class="grid grid-cols-2 gap-3 mt-4">
                     <a href="{{ route('evaluating-hc.index', ['filter' => 'promote']) }}" class="rounded-2xl p-3 bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/50 transition">
                         <span class="block text-xs font-semibold text-emerald-400">Naik HC</span>

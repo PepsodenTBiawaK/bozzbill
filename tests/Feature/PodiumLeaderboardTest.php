@@ -94,6 +94,16 @@ test('leaderboard filters keep their own ranking criteria and unknown filters fa
     }
     PlayerDrill::create(['user_id' => $driller->id, 'drill_name' => 'Straight Shot', 'success_count' => 8, 'fail_count' => 2, 'practice_date' => '2026-10-01']);
 
+    if ($sort === 'win_rate') {
+        for ($number = 0; $number < 3; $number++) {
+            $additional = FunGame::create(['title' => 'Kualifikasi '.$number, 'event_date' => '2026-10-02', 'status' => FunGameStatus::Completed]);
+            for ($match = 0; $match < 3; $match++) {
+                MatchLog::create(['fun_game_id' => $additional->id, 'player1_id' => $winRate->id, 'player2_id' => $driller->id,
+                    'winner_id' => $winRate->id, 'player1_score' => 3, 'player2_score' => 1, 'player1_hc' => '3N', 'player2_hc' => '3N']);
+            }
+        }
+    }
+
     $response = $this->actingAs($champion)->get(route('roster', ['sort' => $sort]));
 
     $response->assertOk()->assertViewHas('sort', $selectedSort);

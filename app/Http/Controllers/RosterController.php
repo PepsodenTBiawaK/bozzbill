@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\FunGame;
 use App\Models\HcHistory;
 use App\Models\User;
+use App\WinRateRanking;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,14 +41,16 @@ class RosterController extends Controller
 
         $allMembers = $membersQuery->get();
         $podiumCounts = $this->podiumCounts();
+        $winRateStandings = WinRateRanking::standings();
 
         // 1. Compute stats for each member
-        $rankedMembers = $allMembers->map(function (User $m) use ($podiumCounts): array {
+        $rankedMembers = $allMembers->map(function (User $m) use ($podiumCounts, $winRateStandings): array {
             $totalMatches = $m->totalMatchesCount();
             $wins = $m->totalWinsCount();
             $winRate = $m->winRatePercentage();
             $drillsCount = $m->playerDrills()->count();
             $placements = $podiumCounts[$m->id] ?? [1 => 0, 2 => 0, 3 => 0];
+            $standing = $winRateStandings->get($m->id, ['total' => 0, 'wins' => 0, 'events' => 0, 'win_rate' => 0.0, 'score' => 0.0, 'eligible' => false]);
 
             return [
                 'user' => $m,
@@ -59,6 +62,12 @@ class RosterController extends Controller
                 'champion_count' => $placements[1],
                 'runner_up_count' => $placements[2],
                 'third_place_count' => $placements[3],
+                'ranking_matches' => $standing['total'],
+                'ranking_wins' => $standing['wins'],
+                'ranking_events' => $standing['events'],
+                'ranking_win_rate' => $standing['win_rate'],
+                'ranking_score' => $standing['score'],
+                'ranking_eligible' => $standing['eligible'],
             ];
         });
 
@@ -66,7 +75,9 @@ class RosterController extends Controller
         $sortedRankings = match ($sort) {
             'most_active' => $rankedMembers->sortByDesc('total_matches')->values(),
             'most_drills' => $rankedMembers->sortByDesc('drills_count')->values(),
-            'win_rate' => $rankedMembers->sortByDesc('win_rate')->values(),
+            'win_rate' => $rankedMembers->where('ranking_eligible', true)->sortBy([
+                ['ranking_score', 'desc'], ['ranking_matches', 'desc'], ['user.name', 'asc'], ['user.id', 'asc'],
+            ])->values(),
             default => $rankedMembers->sortBy([
                 ['podium_count', 'desc'],
                 ['champion_count', 'desc'],
@@ -112,6 +123,7 @@ class RosterController extends Controller
             'searchPlayers' => User::query()->orderBy('name')->get(['id', 'name', 'handicap']),
             'podium' => $podium,
             'restRankings' => $restRankings,
+            'unrankedMembers' => $sort === 'win_rate' ? $rankedMembers->where('ranking_eligible', false)->sortBy([['ranking_matches', 'desc'], ['user.name', 'asc']])->values() : collect(),
             'rosterByHandicap' => $rosterByHandicap,
             'initialHandicap' => $request->user()->handicap->value,
             'totalMembers' => $allMembers->count(),

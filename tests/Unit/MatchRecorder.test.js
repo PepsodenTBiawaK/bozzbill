@@ -72,3 +72,52 @@ test('initialization restores scores and stage and tracks all inputs that determ
     watchers.get('p1Score')();
     assert.equal(recorder.winnerId, '12');
 });
+
+const voorLabels = ['Tanpa Voor', 'Voor 1 Frame', 'Voor Bola 8 Naik', 'Voor Bola 8 Sambung', 'Voor Bola 7 Naik'];
+
+test('single voor preview follows the selected HC gap and names the lower HC recipient', () => {
+    const players = [
+        { id: 1, name: 'Awal', handicapRank: 1 },
+        { id: 2, name: 'Lawan', handicapRank: 2 },
+        { id: 3, name: 'Tertinggi', handicapRank: 5 },
+    ];
+    const recorder = matchRecorder(players, { p1Id: 1, p2Id: 2 }, { format: 'single', voorLabels });
+    assert.equal(recorder.voorPreview, 'Voor 1 Frame untuk Awal');
+    recorder.p2Id = '3';
+    assert.equal(recorder.voorPreview, 'Voor Bola 7 Naik untuk Awal');
+    recorder.p1Id = '3';
+    recorder.p2Id = '1';
+    assert.equal(recorder.voorPreview, 'Voor Bola 7 Naik untuk Awal');
+});
+
+test('double previews omit voor while valid final scores infer races three through five', () => {
+    const recorder = matchRecorder(teams, { p1Id: 12, p2Id: 34, p1Score: 3, p2Score: 5 }, { format: 'double' });
+    recorder.updateWinner();
+    assert.equal(recorder.voorPreview, '');
+    assert.equal(recorder.inferredRace, 5);
+    recorder.p1Score = 4;
+    recorder.p2Score = 2;
+    recorder.updateWinner();
+    assert.equal(recorder.inferredRace, 4);
+    recorder.p1Score = 3;
+    recorder.updateWinner();
+    assert.equal(recorder.inferredRace, 3);
+    recorder.p1Score = 2;
+    recorder.updateWinner();
+    assert.equal(recorder.inferredRace, null);
+});
+
+test('historical or missing HC cannot silently acquire a guessed voor', () => {
+    const players = [{ id: 1, name: 'Awal', handicapRank: 1 }, { id: 2, name: 'Lawan', handicapRank: 5 }, { id: 3, name: 'Arsip' }];
+    const recorder = matchRecorder(players, { p1Id: 1, p2Id: 2 }, { format: 'single', voorLabels, originalIds: ['1', '2'], originalVoor: 'Voor tidak tercatat' });
+    assert.equal(recorder.voorPreview, 'Voor tidak tercatat');
+    recorder.p2Id = '3';
+    assert.equal(recorder.voorPreview, 'Voor tidak tercatat');
+});
+
+test('manual winner selection remains intact in active single edits', () => {
+    const recorder = matchRecorder(teams, { p1Id: 12, p2Id: 34, p1Score: 3, p2Score: 5, winnerId: 12 }, { autoWinner: false });
+    recorder.updateWinner();
+    assert.equal(recorder.winnerId, '12');
+    assert.equal(recorder.inferredRace, null);
+});

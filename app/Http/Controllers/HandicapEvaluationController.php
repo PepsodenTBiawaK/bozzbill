@@ -6,6 +6,7 @@ use App\Enums\EvaluationRecommendation;
 use App\Enums\Handicap;
 use App\Models\HcHistory;
 use App\Models\User;
+use App\WinRateRanking;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,8 +27,13 @@ class HandicapEvaluationController extends Controller
         $filter = $request->query('filter', 'all');
 
         $players = User::query()
+            ->with('hcHistories')
             ->orderBy('name')
             ->get();
+
+        $matches = WinRateRanking::completedSingles()->with('funGame')->get();
+        $firstSides = $matches->groupBy('player1_id');
+        $secondSides = $matches->groupBy('player2_id');
 
         $evaluations = [];
         $counts = [
@@ -39,7 +45,7 @@ class HandicapEvaluationController extends Controller
         ];
 
         foreach ($players as $player) {
-            $eval = $player->evaluateHandicap();
+            $eval = $player->evaluateHandicap($firstSides->get($player->id, collect())->concat($secondSides->get($player->id, collect())));
             $evaluations[] = [
                 'user' => $player,
                 'data' => $eval,
