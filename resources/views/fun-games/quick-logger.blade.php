@@ -92,6 +92,7 @@
                         <option value="16 Besar">16 Besar</option>
                         <option value="Perempat Final">Perempat Final (8 Besar)</option>
                         <option value="Semifinal">Semifinal</option>
+                        <option value="Perebutan Juara 3">Perebutan Juara 3</option>
                         <option value="Final">Final</option>
                     </select>
                 </div>
