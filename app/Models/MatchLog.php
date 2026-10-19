@@ -6,6 +6,7 @@ use App\Enums\Handicap;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MatchLog extends Model
 {
@@ -40,6 +41,42 @@ class MatchLog extends Model
     public function funGame(): BelongsTo
     {
         return $this->belongsTo(FunGame::class);
+    }
+
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(MatchLogCorrection::class);
+    }
+
+    /** @return array<string, int|string|null> */
+    public function correctionValues(): array
+    {
+        $attributes = $this->attributesToArray();
+        $values = [];
+
+        foreach ([
+            'player1_id', 'player2_id', 'team1_id', 'team2_id',
+            'player1_score', 'player2_score', 'winner_id', 'winner_team_id',
+            'player1_hc', 'player2_hc', 'stage',
+        ] as $field) {
+            $value = $attributes[$field] ?? null;
+            $values[$field] = $value !== null && (str_ends_with($field, '_id') || str_ends_with($field, '_score'))
+                ? (int) $value
+                : $value;
+        }
+
+        return $values;
+    }
+
+    public function correctionVersion(): string
+    {
+        return hash('sha256', json_encode([
+            'id' => (int) $this->id,
+            'fun_game_id' => (int) $this->fun_game_id,
+            'updated_at' => $this->getRawOriginal('updated_at'),
+            'values' => $this->correctionValues(),
+            'last_correction_id' => $this->corrections()->max('id'),
+        ], JSON_THROW_ON_ERROR));
     }
 
     public function player1(): BelongsTo

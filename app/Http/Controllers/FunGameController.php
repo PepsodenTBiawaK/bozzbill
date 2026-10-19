@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -62,6 +64,10 @@ class FunGameController extends Controller
                 $q->with(['player1', 'player2', 'winner', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2', 'winnerTeam.player1', 'winnerTeam.player2'])->latest();
             },
         ]);
+
+        if (Auth::user()->fresh()?->isSuperadmin()) {
+            $funGame->load(['corrections' => fn (HasMany $query): HasMany => $query->with('actor:id,name')->latest('id')]);
+        }
 
         $members = User::query()
             ->orderBy('name')
@@ -312,8 +318,9 @@ class FunGameController extends Controller
 
     public function editMatch(Request $request, FunGame $funGame, MatchLog $match): View
     {
-        abort_unless($request->user()->isAdmin(), 403);
-        abort_unless($funGame->isOpen(), 403, 'Event sudah ditutup. Match tidak dapat diubah.');
+        $actor = $request->user()->fresh();
+        abort_unless($actor?->isAdmin(), 403);
+        abort_unless($funGame->isOpen() || ($funGame->isCompleted() && $actor->isSuperadmin()), 403, 'Event sudah ditutup. Koreksi match hanya tersedia untuk superadmin pada event yang selesai.');
 
         return view('fun-games.edit-match', [
             'funGame' => $funGame,
@@ -326,23 +333,117 @@ class FunGameController extends Controller
     public function updateMatch(Request $request, FunGame $funGame, MatchLog $match): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
-        $validated = $this->validatedMatch($request, $funGame);
+        $passwordRejected = false;
+        $completedCorrection = false;
+        $rateLimitKey = $this->correctionRateLimitKey($request);
 
-        DB::transaction(function () use ($request, $funGame, $match, $validated): void {
-            $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
-            $this->ensureMatchesEditable($event);
-            abort_unless($request->user()->fresh()->isAdmin(), 403);
-            $target = $event->matches()->lockForUpdate()->findOrFail($match->id);
-            $oldWinnerId = $target->winner_id;
-            $target->update($this->matchAttributes($event, $validated, $target));
+        try {
+            DB::transaction(function () use ($request, $funGame, $match, &$passwordRejected, &$completedCorrection): void {
+                $event = FunGame::query()->lockForUpdate()->findOrFail($funGame->id);
+                $actor = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+                abort_unless($actor->isAdmin(), 403);
+                $target = $event->matches()->lockForUpdate()->findOrFail($match->id);
 
-            foreach (User::query()->whereIn('id', array_filter(array_unique([$oldWinnerId, $target->winner_id])))
-                ->orderBy('id')->lockForUpdate()->get() as $winner) {
-                $this->syncGiantKillerBadge($winner);
+                if ($event->isCompleted()) {
+                    abort_unless($actor->isSuperadmin(), 403);
+                    $this->correctCompletedMatch($request, $event, $target, $actor, $passwordRejected);
+                    $completedCorrection = true;
+
+                    return;
+                }
+
+                $this->ensureMatchesEditable($event);
+                $validated = $this->validatedMatch($request, $event);
+                $oldWinnerId = $target->winner_id;
+                $target->update($this->matchAttributes($event, $validated, $target));
+
+                foreach (User::query()->whereIn('id', array_filter(array_unique([$oldWinnerId, $target->winner_id])))
+                    ->orderBy('id')->lockForUpdate()->get() as $winner) {
+                    $this->syncGiantKillerBadge($winner);
+                }
+            }, 3);
+        } catch (ValidationException $exception) {
+            if ($passwordRejected) {
+                RateLimiter::hit($rateLimitKey, 60);
             }
-        });
 
-        return redirect()->route('fun-games.show', $funGame)->with('status_success', 'Match berhasil diperbarui. Statistik pemain sudah disesuaikan.');
+            throw $exception;
+        }
+
+        if ($completedCorrection) {
+            RateLimiter::clear($rateLimitKey);
+        }
+
+        return redirect()->route('fun-games.show', $funGame)->with('status_success', $completedCorrection
+            ? 'Koreksi match berhasil disimpan dan dicatat. Statistik serta lencana pemain sudah disesuaikan; podium event tetap.'
+            : 'Match berhasil diperbarui. Statistik pemain sudah disesuaikan.');
+    }
+
+    private function correctCompletedMatch(Request $request, FunGame $event, MatchLog $target, User $actor, bool &$passwordRejected): void
+    {
+        if (is_string($request->input('correction_reason'))) {
+            $request->merge(['correction_reason' => trim($request->input('correction_reason'))]);
+        }
+
+        $security = $request->validate([
+            'current_password' => ['required', 'string'],
+            'correction_reason' => ['required', 'string', 'max:500'],
+            'correction_confirmed' => ['accepted'],
+            'match_version' => ['required', 'string', 'size:64'],
+        ], [
+            'current_password.required' => 'Masukkan password akun Anda untuk menyimpan koreksi.',
+            'correction_reason.required' => 'Tulis alasan koreksi match.',
+            'correction_reason.max' => 'Alasan koreksi maksimal 500 karakter.',
+            'correction_confirmed.accepted' => 'Konfirmasikan bahwa Anda yakin ingin mengoreksi match ini.',
+            'match_version.required' => 'Muat ulang formulir koreksi untuk memastikan data terbaru.',
+        ]);
+
+        $rateLimitKey = $this->correctionRateLimitKey($request);
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Terlalu banyak percobaan password. Coba kembali dalam '.RateLimiter::availableIn($rateLimitKey).' detik.',
+            ])->status(429);
+        }
+
+        if (! Hash::check($security['current_password'], $actor->password ?? '')) {
+            $passwordRejected = true;
+
+            throw ValidationException::withMessages(['current_password' => 'Password akun Anda tidak cocok. Koreksi belum disimpan.']);
+        }
+
+        if (! hash_equals($target->correctionVersion(), $security['match_version'])) {
+            throw ValidationException::withMessages(['match_version' => 'Match sudah berubah sejak formulir dibuka. Muat ulang formulir, periksa data terbaru, lalu ulangi koreksi.']);
+        }
+
+        $validated = $this->validatedMatch($request, $event, true);
+        $before = $target->correctionValues();
+        $oldParticipantIds = $target->participantIds();
+        $target->fill($this->matchAttributes($event, $validated, $target));
+        $after = $target->correctionValues();
+
+        if ($before === $after) {
+            throw ValidationException::withMessages(['match' => 'Belum ada perubahan pada match. Koreksi tidak disimpan.']);
+        }
+
+        $target->save();
+        $target->corrections()->create([
+            'fun_game_id' => $event->id,
+            'changed_by' => $actor->id,
+            'reason' => $security['correction_reason'],
+            'before_values' => $before,
+            'after_values' => $after,
+        ]);
+
+        $target->unsetRelation('team1')->unsetRelation('team2');
+        $participantIds = array_unique([...$oldParticipantIds, ...$target->participantIds()]);
+        foreach (User::query()->whereIn('id', $participantIds)->orderBy('id')->lockForUpdate()->get() as $participant) {
+            $participant->syncAchievementBadges(['giant_kills', 'streak']);
+        }
+    }
+
+    private function correctionRateLimitKey(Request $request): string
+    {
+        return 'completed-match-correction:'.$request->user()->id.'|'.$request->ip();
     }
 
     public function destroyMatch(Request $request, FunGame $funGame, MatchLog $match): RedirectResponse
@@ -617,8 +718,8 @@ class FunGameController extends Controller
         return [
             ...$validated,
             'stage' => $validated['stage'] ?? 'Penyisihan',
-            'player1_hc' => $snapshots[$validated['player1_id']] ?? $players->get($validated['player1_id'])->handicap,
-            'player2_hc' => $snapshots[$validated['player2_id']] ?? $players->get($validated['player2_id'])->handicap,
+            'player1_hc' => array_key_exists($validated['player1_id'], $snapshots) ? $snapshots[$validated['player1_id']] : $players->get($validated['player1_id'])->handicap,
+            'player2_hc' => array_key_exists($validated['player2_id'], $snapshots) ? $snapshots[$validated['player2_id']] : $players->get($validated['player2_id'])->handicap,
             'team1_id' => null,
             'team2_id' => null,
             'winner_team_id' => null,
@@ -628,7 +729,7 @@ class FunGameController extends Controller
     /**
      * @return array{player1_id: int|string, player2_id: int|string, player1_score: int|string, player2_score: int|string, winner_id: int, stage?: ?string}
      */
-    private function validatedMatch(Request $request, FunGame $funGame): array
+    private function validatedMatch(Request $request, FunGame $funGame, bool $requireMatchingScore = false): array
     {
         if ($funGame->isDouble()) {
             return $this->validatedDoubleMatch($request, $funGame);
@@ -646,7 +747,7 @@ class FunGameController extends Controller
             'winner_id.in' => 'Pemenang harus salah satu dari Pemain 1 atau Pemain 2.',
         ]);
 
-        $validator->after(function (ValidatorInstance $validator) use ($request): void {
+        $validator->after(function (ValidatorInstance $validator) use ($request, $requireMatchingScore): void {
             if ($validator->errors()->hasAny(['player1_id', 'player2_id'])) {
                 return;
             }
@@ -660,6 +761,18 @@ class FunGameController extends Controller
                 (int) $request->input('player2_id'),
             ], true)) {
                 $validator->addFailure('winner_id', 'In');
+            }
+
+            if (! $requireMatchingScore || $validator->errors()->hasAny(['player1_score', 'player2_score', 'winner_id'])) {
+                return;
+            }
+
+            $firstScore = (int) $request->input('player1_score');
+            $secondScore = (int) $request->input('player2_score');
+            if ($firstScore === $secondScore) {
+                $validator->errors()->add('player2_score', 'Skor akhir tidak boleh seri.');
+            } elseif ((int) $request->input('winner_id') !== (int) $request->input($firstScore > $secondScore ? 'player1_id' : 'player2_id')) {
+                $validator->errors()->add('winner_id', 'Pemenang harus pemain dengan skor lebih tinggi.');
             }
         });
 

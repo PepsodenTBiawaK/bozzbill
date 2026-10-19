@@ -44,6 +44,11 @@ class FunGame extends Model
         return $this->hasMany(FunGameTeam::class);
     }
 
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(MatchLogCorrection::class);
+    }
+
     public function isDouble(): bool
     {
         return $this->format === 'double';

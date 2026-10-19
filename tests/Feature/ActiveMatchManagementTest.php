@@ -106,13 +106,18 @@ test('members cannot access match corrections or delete a match', function () {
     expect($match->fresh()->getAttributes())->toBe($original);
 });
 
-test('closed and cancelled events refuse match edits and deletions even from a previously open form', function (FunGameStatus $status) {
-    ['actor' => $actor, 'event' => $event, 'match' => $match, 'payload' => $payload] = editableMatchFixture(UserRole::Superadmin);
+test('closed and cancelled events refuse match edits and deletions from administrators even from a previously open form', function (FunGameStatus $status) {
+    ['actor' => $actor, 'event' => $event, 'match' => $match, 'payload' => $payload] = editableMatchFixture(UserRole::Admin);
     $this->actingAs($actor)->get(route('fun-games.matches.edit', [$event, $match]))->assertOk();
     $event->update(['status' => $status]);
     $original = $match->fresh()->getAttributes();
     $this->get(route('fun-games.matches.edit', [$event, $match]))->assertForbidden();
-    $this->putJson(route('fun-games.matches.update', [$event, $match]), $payload)->assertUnprocessable()->assertJsonValidationErrors('fun_game');
+    $response = $this->putJson(route('fun-games.matches.update', [$event, $match]), $payload);
+    if ($status === FunGameStatus::Completed) {
+        $response->assertForbidden();
+    } else {
+        $response->assertUnprocessable()->assertJsonValidationErrors('fun_game');
+    }
     $this->deleteJson(route('fun-games.matches.destroy', [$event, $match]))->assertUnprocessable()->assertJsonValidationErrors('fun_game');
     expect($match->fresh()->getAttributes())->toBe($original);
     $this->get(route('fun-games.show', $event))->assertDontSee('Edit Match')->assertDontSee('Ya, Hapus Match');

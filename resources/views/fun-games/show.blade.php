@@ -203,6 +203,68 @@
             </div>
         </div>
 
+        @if (auth()->user()?->isSuperadmin() && $funGame->relationLoaded('corrections') && $funGame->corrections->isNotEmpty())
+            @php
+                $correctionMembers = $members->keyBy('id');
+                $correctionTeams = $teams->keyBy('id');
+            @endphp
+            <details class="group rounded-2xl border border-[#333741] bg-[#202227] p-4 sm:p-5">
+                <summary class="min-h-11 flex items-center justify-between gap-3 text-sm font-semibold text-[#d4d4d4] cursor-pointer">
+                    <span>Catatan Koreksi Histori</span>
+                    <span class="flex items-center gap-2">
+                        <span class="rounded-full bg-[#dea538]/10 px-2.5 py-1 text-xs text-[#dea538]">{{ $funGame->corrections->count() }}</span>
+                        <svg class="size-4 text-[#959595] transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                        </svg>
+                    </span>
+                </summary>
+                <div class="pt-3 space-y-4">
+                    @foreach ($funGame->corrections as $correction)
+                        <div class="border-t border-[#333741] pt-3 space-y-1.5">
+                            <p class="text-xs font-semibold text-white">Match #{{ $correction->match_log_id }} &bull; {{ $correction->actor?->name ?? 'Akun tidak tersedia' }}</p>
+                            <p class="text-xs text-[#959595]">{{ $correction->created_at->format('d M Y, H:i') }}</p>
+                            <p class="text-xs leading-relaxed text-[#d4d4d4] whitespace-pre-line break-words">{{ $correction->reason }}</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1.5">
+                                @foreach (['Sebelum' => $correction->before_values, 'Sesudah' => $correction->after_values] as $snapshotLabel => $snapshot)
+                                    @php
+                                        $snapshotIsDouble = ($snapshot['team1_id'] ?? null) !== null || ($snapshot['team2_id'] ?? null) !== null;
+                                        $snapshotWinnerId = $snapshot[$snapshotIsDouble ? 'winner_team_id' : 'winner_id'] ?? null;
+                                        $snapshotWinner = $snapshotIsDouble
+                                            ? $correctionTeams->get($snapshotWinnerId)?->displayName()
+                                            : $correctionMembers->get($snapshotWinnerId)?->name;
+                                        $snapshotScore = ($snapshot['player1_score'] ?? null) !== null && ($snapshot['player2_score'] ?? null) !== null
+                                            ? $snapshot['player1_score'].' - '.$snapshot['player2_score']
+                                            : 'Skor Tidak Tercatat';
+                                    @endphp
+                                    <div class="rounded-xl border border-[#333741] bg-[#16171a] p-3 space-y-1.5">
+                                        <p @class(['text-xs font-semibold', 'text-[#959595]' => $snapshotLabel === 'Sebelum', 'text-[#dea538]' => $snapshotLabel === 'Sesudah'])>{{ $snapshotLabel }}</p>
+                                        <p class="text-xs leading-relaxed text-white break-words">
+                                            @foreach ([1, 2] as $side)
+                                                @php
+                                                    $snapshotParticipantId = $snapshot[($snapshotIsDouble ? 'team' : 'player').$side.'_id'] ?? null;
+                                                    $snapshotParticipant = $snapshotIsDouble
+                                                        ? $correctionTeams->get($snapshotParticipantId)?->displayName()
+                                                        : $correctionMembers->get($snapshotParticipantId)?->name;
+                                                @endphp
+                                                <span>{{ $snapshotParticipant ?? ($snapshotParticipantId ? ($snapshotIsDouble ? 'Pasangan #' : 'Anggota #').$snapshotParticipantId : '-') }}</span>
+                                                @if (! $snapshotIsDouble && ($snapshot['player'.$side.'_hc'] ?? null))
+                                                    <span class="text-[#959595]">(HC {{ $snapshot['player'.$side.'_hc'] }})</span>
+                                                @endif
+                                                @if ($side === 1)
+                                                    <strong class="px-1 text-[#dea538]">{{ $snapshotScore }}</strong>
+                                                @endif
+                                            @endforeach
+                                        </p>
+                                        <p class="text-xs leading-relaxed text-[#959595] break-words">{{ $snapshot['stage'] ?? 'Penyisihan' }} &bull; Pemenang: {{ $snapshotWinner ?? ($snapshotWinnerId ? ($snapshotIsDouble ? 'Pasangan #' : 'Anggota #').$snapshotWinnerId : '-') }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </details>
+        @endif
+
         <!-- ================= CLOSE EVENT MODAL (ADMIN) ================= -->
         @if (auth()->user()?->isAdmin() && $funGame->isOpen())
             <div 
@@ -261,7 +323,7 @@
                         </div>
 
                         <p class="text-[11px] text-[#888e9b] pt-1">
-                            Menutup event akan mengunci perubahan match dan pasangan. {{ $funGame->isDouble() ? 'Kedua anggota pasangan mendapat prestasi podium masing-masing.' : 'Juara 1 mendapat lencana Champion.' }}
+                            Menutup event akan mengunci perubahan match dan pasangan. Koreksi match setelah selesai hanya dapat dilakukan Superadmin dengan konfirmasi password. {{ $funGame->isDouble() ? 'Kedua anggota pasangan mendapat prestasi podium masing-masing.' : 'Juara 1 mendapat lencana Champion.' }}
                         </p>
 
                         <button 

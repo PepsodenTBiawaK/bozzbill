@@ -12,4 +12,6 @@
             <button type="submit" class="min-h-11 px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 font-semibold cursor-pointer">Ya, Hapus Match</button>
         </form>
     </div>
+@elseif (auth()->user()?->isSuperadmin() && $event->isCompleted())
+    <a href="{{ route('fun-games.matches.edit', [$event, $match]) }}" aria-label="Koreksi match {{ $match->sideName(1) }} melawan {{ $match->sideName(2) }}" class="min-h-11 inline-flex items-center px-3 rounded-xl border border-[#dea538]/30 text-xs font-semibold text-[#dea538] hover:bg-[#dea538]/10">Koreksi Match</a>
 @endif

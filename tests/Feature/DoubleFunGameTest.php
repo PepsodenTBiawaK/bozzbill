@@ -234,7 +234,12 @@ test('closed double events reject new matches and stale corrections or deletions
     $original = $match->fresh()->getAttributes();
 
     $this->actingAs($actor)->postJson(route('fun-games.matches.store', $event), $payload)->assertUnprocessable()->assertJsonValidationErrors('fun_game');
-    $this->putJson(route('fun-games.matches.update', [$event, $match]), $payload)->assertUnprocessable()->assertJsonValidationErrors('fun_game');
+    $response = $this->putJson(route('fun-games.matches.update', [$event, $match]), $payload);
+    if ($status === FunGameStatus::Completed) {
+        $response->assertForbidden();
+    } else {
+        $response->assertUnprocessable()->assertJsonValidationErrors('fun_game');
+    }
     $this->deleteJson(route('fun-games.matches.destroy', [$event, $match]))->assertUnprocessable()->assertJsonValidationErrors('fun_game');
 
     expect($match->fresh()->getAttributes())->toBe($original);

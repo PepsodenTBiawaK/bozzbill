@@ -100,6 +100,7 @@ jobs:
           tests/Feature/FunGameLifecycleTest.php
           tests/Feature/FunGameHistoryDeletionTest.php
           tests/Feature/ActiveMatchManagementTest.php
+          tests/Feature/CompletedMatchCorrectionTest.php
           tests/Feature/CommunityHistoryImportTest.php
 
       - name: Prepare production dependencies
