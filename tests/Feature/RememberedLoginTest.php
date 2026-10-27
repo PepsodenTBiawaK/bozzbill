@@ -45,9 +45,10 @@ test('login without remembering the device requires login again after the sessio
 
 test('new activation can remember the device and restore access after the session is lost', function () {
     $this->freezeTime();
-    $member = User::factory()->create(['password' => null]);
+    $member = User::factory()->awaitingActivation()->create();
     $cookieName = Auth::guard()->getRecallerName();
     $response = $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'member-password',
         'password_confirmation' => 'member-password',
@@ -67,8 +68,9 @@ test('new activation can remember the device and restore access after the sessio
 });
 
 test('activation without remembering the device does not issue a persistent login cookie', function (?string $remember) {
-    $member = User::factory()->create(['password' => null]);
+    $member = User::factory()->awaitingActivation()->create();
     $payload = [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'member-password',
         'password_confirmation' => 'member-password',
@@ -86,9 +88,10 @@ test('activation without remembering the device does not issue a persistent logi
 })->with(['unchecked' => ['0'], 'omitted' => [null]]);
 
 test('an invalid remember selection cannot activate an account', function () {
-    $member = User::factory()->create(['password' => null]);
+    $member = User::factory()->awaitingActivation()->create();
 
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'member-password',
         'password_confirmation' => 'member-password',

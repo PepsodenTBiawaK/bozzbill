@@ -148,7 +148,7 @@ test('archive profiles can receive a real phone and activate without losing thei
     $arya = User::where('name', 'Arya')->firstOrFail();
     $this->actingAs($owner)->put(route('roster.phone', $arya), ['phone' => '+6281100000002'])->assertRedirect();
     $this->post(route('logout'));
-    $this->post(route('activate.post'), ['phone' => '081100000002', 'password' => 'member123', 'password_confirmation' => 'member123'])->assertSessionHasNoErrors();
+    $this->post(route('activate.post'), ['activation_code' => issueTestActivationCode($arya), 'phone' => '081100000002', 'password' => 'member123', 'password_confirmation' => 'member123'])->assertSessionHasNoErrors();
     expect($arya->fresh()->is_active)->toBeTrue();
     expect($arya->fresh()->totalMatchesCount())->toBe(2);
     expect($arya->fresh()->totalWinsCount())->toBe(1);

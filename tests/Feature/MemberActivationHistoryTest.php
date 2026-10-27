@@ -95,6 +95,7 @@ test('a registered member keeps their match history badges and handicap when act
     $this->assertGuest();
 
     $this->post(route('activate.post'), [
+        'activation_code' => issueTestActivationCode($member),
         'phone' => $member->phone,
         'password' => 'member-password',
         'password_confirmation' => 'member-password',

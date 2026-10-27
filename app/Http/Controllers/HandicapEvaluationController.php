@@ -24,6 +24,7 @@ class HandicapEvaluationController extends Controller
             abort(403, 'Akses terbatas untuk Pengurus BozzBill.');
         }
 
+        $request->validate(['filter' => ['nullable', 'string', 'max:20']]);
         $filter = $request->query('filter', 'all');
 
         $players = User::query()

@@ -15,13 +15,13 @@ use Illuminate\Support\Facades\Route;
 // Guest Routes
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-    Route::post('/check-activation', [AuthController::class, 'checkActivationPhone'])->name('activation.check');
-    Route::post('/activate', [AuthController::class, 'activate'])->name('activate.post');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login.post');
+    Route::post('/check-activation', [AuthController::class, 'checkActivationPhone'])->middleware('throttle:activation')->name('activation.check');
+    Route::post('/activate', [AuthController::class, 'activate'])->middleware('throttle:activation')->name('activate.post');
 });
 
 // Authenticated Routes
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', 'throttle:application'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     // Home / Paspor Pemain
@@ -32,7 +32,7 @@ Route::middleware('auth')->group(function (): void {
     // Profil Pemain & Riwayat HC
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:account-security')->name('profile.password');
 
     // Head to Head
     Route::get('/head-to-head', [HeadToHeadController::class, 'index'])->name('head-to-head');
@@ -49,9 +49,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/roster', [RosterController::class, 'index'])->name('roster');
     Route::post('/members', [RosterController::class, 'storeMember'])->name('members.store');
     Route::get('/roster/{user}', [RosterController::class, 'show'])->name('roster.show');
-    Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->name('roster.reset-password');
-    Route::put('/roster/{user}/phone', [RosterController::class, 'updatePhone'])->name('roster.phone');
-    Route::put('/roster/{user}/role', [RosterController::class, 'updateRole'])->name('roster.role');
+    Route::post('/roster/{user}/activation-code', [RosterController::class, 'issueActivationCode'])->middleware('throttle:account-security')->name('roster.activation-code');
+    Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->middleware('throttle:account-security')->name('roster.reset-password');
+    Route::put('/roster/{user}/phone', [RosterController::class, 'updatePhone'])->middleware('throttle:account-security')->name('roster.phone');
+    Route::put('/roster/{user}/role', [RosterController::class, 'updateRole'])->middleware('throttle:account-security')->name('roster.role');
     Route::put('/roster/{user}/handicap', [RosterController::class, 'updateHandicap'])->name('roster.handicap');
 
     // Modul Fun Game & Match Logger

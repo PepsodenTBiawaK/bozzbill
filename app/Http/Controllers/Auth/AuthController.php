@@ -20,6 +20,11 @@ class AuthController extends Controller
      */
     public function showLogin(Request $request): View
     {
+        $request->validate([
+            'tab' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:32'],
+        ]);
+
         return view('auth.login', [
             'initialTab' => $request->query('tab', 'login'),
             'initialPhone' => $request->query('phone', ''),
@@ -32,8 +37,8 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'phone' => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'phone' => ['required', 'string', 'max:32'],
+            'password' => ['required', 'string', 'max:255'],
             'remember' => ['nullable', 'boolean'],
         ]);
 
@@ -72,7 +77,8 @@ class AuthController extends Controller
     public function checkActivationPhone(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'phone' => ['required', 'string'],
+            'phone' => ['required', 'string', 'max:32'],
+            'activation_code' => ['nullable', 'string', 'regex:/^[0-9]{8}$/'],
         ]);
 
         $phone = $this->normalizePhone($validated['phone']);
@@ -94,6 +100,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if (! $user->hasValidActivationCode($validated['activation_code'] ?? '')) {
+            throw ValidationException::withMessages([
+                'activation_code' => 'Kode aktivasi tidak valid atau sudah kedaluwarsa. Minta kode baru kepada pengurus.',
+            ]);
+        }
+
         return response()->json([
             'status' => 'ready',
             'user' => [
@@ -112,8 +124,9 @@ class AuthController extends Controller
     public function activate(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'phone' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'phone' => ['required', 'string', 'max:32'],
+            'activation_code' => ['nullable', 'string', 'regex:/^[0-9]{8}$/'],
+            'password' => ['required', 'string', 'min:6', 'max:255', 'confirmed'],
             'remember' => ['nullable', 'boolean'],
         ], [
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
@@ -142,9 +155,17 @@ class AuthController extends Controller
                 return $user;
             }
 
+            if (! $user->hasValidActivationCode($validated['activation_code'] ?? '')) {
+                throw ValidationException::withMessages([
+                    'activation_code' => 'Kode aktivasi tidak valid atau sudah kedaluwarsa. Minta kode baru kepada pengurus.',
+                ]);
+            }
+
             $user->forceFill([
                 'password' => Hash::make($validated['password']),
                 'is_active' => true,
+                'activation_code_hash' => null,
+                'activation_code_expires_at' => null,
             ])->save();
 
             return $user;

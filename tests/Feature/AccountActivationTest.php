@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\Hash;
 uses(RefreshDatabase::class);
 
 test('new activation starts a session that can access home on the next request', function () {
-    $member = User::factory()->create(['phone' => '081234567890', 'password' => null]);
+    $member = User::factory()->awaitingActivation()->create(['phone' => '081234567890']);
     $this->get(route('login', ['tab' => 'activation']));
     $previousSessionId = session()->getId();
 
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => '+62 812-3456-7890',
         'password' => 'member-password',
         'password_confirmation' => 'member-password',
@@ -32,7 +33,7 @@ test('new activation starts a session that can access home on the next request',
 test('checking an active account returns its normalized phone for the login tab', function () {
     User::factory()->create(['phone' => '081234567890', 'is_active' => true]);
 
-    $this->postJson(route('activation.check'), ['phone' => '+62 812-3456-7890'])
+    $this->postJson(route('activation.check'), ['activation_code' => '12345678', 'phone' => '+62 812-3456-7890'])
         ->assertOk()->assertJson([
             'status' => 'already_active',
             'phone' => '081234567890',
@@ -46,6 +47,7 @@ test('an active account can finish a repeated activation with its existing passw
     $previousAttributes = $member->fresh()->getAttributes();
 
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => '081234567890',
         'password' => 'password',
         'password_confirmation' => 'password',
@@ -60,6 +62,7 @@ test('an active account rejects a different activation password and opens login 
     $previousAttributes = $member->fresh()->getAttributes();
 
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => '+62 812-3456-7890',
         'password' => 'different-password',
         'password_confirmation' => 'different-password',
@@ -74,10 +77,11 @@ test('an active account rejects a different activation password and opens login 
 });
 
 test('a stale activation form cannot replace a password after activation has completed', function () {
-    $member = User::factory()->create(['phone' => '081234567890', 'password' => null]);
-    $this->postJson(route('activation.check'), ['phone' => $member->phone])
+    $member = User::factory()->awaitingActivation()->create(['phone' => '081234567890']);
+    $this->postJson(route('activation.check'), ['activation_code' => '12345678', 'phone' => $member->phone])
         ->assertOk()->assertJsonPath('status', 'ready');
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'first-password',
         'password_confirmation' => 'first-password',
@@ -86,6 +90,7 @@ test('a stale activation form cannot replace a password after activation has com
     $savedPassword = $member->fresh()->password;
 
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'second-password',
         'password_confirmation' => 'second-password',
@@ -98,9 +103,10 @@ test('a stale activation form cannot replace a password after activation has com
 });
 
 test('activation with mismatched confirmation keeps the account inactive', function () {
-    $member = User::factory()->create(['password' => null]);
+    $member = User::factory()->awaitingActivation()->create();
 
     $this->from(route('login', ['tab' => 'activation']))->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => $member->phone,
         'password' => 'first-password',
         'password_confirmation' => 'different-password',
@@ -112,6 +118,7 @@ test('activation with mismatched confirmation keeps the account inactive', funct
 
 test('activation cannot create an account for an unregistered phone', function () {
     $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => '081234567890',
         'password' => 'member-password',
         'password_confirmation' => 'member-password',

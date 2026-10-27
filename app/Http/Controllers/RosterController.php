@@ -26,6 +26,12 @@ class RosterController extends Controller
      */
     public function index(Request $request): View
     {
+        $request->validate([
+            'tab' => ['nullable', 'string', 'max:30'],
+            'sort' => ['nullable', 'string', 'max:100'],
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+
         $tab = $request->query('tab', 'leaderboard');
         $sort = $request->query('sort', 'most_podium');
         if (! in_array($sort, ['most_podium', 'win_rate', 'most_active', 'most_drills'], true)) {
@@ -194,6 +200,33 @@ class RosterController extends Controller
     }
 
     /**
+     * Issue a private, one-time activation code for an inactive member.
+     */
+    public function issueActivationCode(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->canManageAccount($user), 403);
+
+        $code = (string) random_int(10_000_000, 99_999_999);
+        DB::transaction(function () use ($request, $user, $code): void {
+            $target = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($request->user()->fresh()->canManageAccount($target), 403);
+            if ($target->is_active) {
+                throw ValidationException::withMessages(['activation_code' => 'Akun sudah aktif dan tidak memerlukan kode aktivasi.']);
+            }
+
+            $target->forceFill([
+                'activation_code_hash' => Hash::make($code),
+                'activation_code_expires_at' => now()->addDay(),
+            ])->save();
+        });
+
+        return redirect()->route('roster.show', $user)->with('issued_activation_code', [
+            'user_id' => $user->id,
+            'code' => $code,
+        ]);
+    }
+
+    /**
      * Set a new password for an activated community member (Admin).
      */
     public function resetPassword(Request $request, User $user): RedirectResponse
@@ -269,7 +302,7 @@ class RosterController extends Controller
 
         return redirect()
             ->route('roster', ['tab' => 'roster'])
-            ->with('status_success', "Calon member '{$newMember->name}' ({$newMember->phone}) berhasil didaftarkan dengan HC {$newMember->handicap->value}! Member dapat langsung melakukan Aktivasi Akun.");
+            ->with('status_success', "Calon member '{$newMember->name}' ({$newMember->phone}) berhasil didaftarkan dengan HC {$newMember->handicap->value}! Buka profil anggota untuk membuat kode aktivasi.");
     }
 
     public function updateHandicap(Request $request, User $user): RedirectResponse
@@ -334,7 +367,11 @@ class RosterController extends Controller
 
             if ($target->phone !== $validated['phone']) {
                 $this->recordAccountChange($target, 'phone', $target->phone, $validated['phone'], $request->user()->id);
-                $target->update(['phone' => $validated['phone']]);
+                $target->forceFill([
+                    'phone' => $validated['phone'],
+                    'activation_code_hash' => null,
+                    'activation_code_expires_at' => null,
+                ])->save();
                 $target->revokeLoginSessions();
             }
         });

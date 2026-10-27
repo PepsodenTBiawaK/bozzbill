@@ -202,6 +202,11 @@
                                 />
                                 <p class="text-[11px] text-[#787e8c] mt-1.5">Nomor harus sudah didaftarkan sebelumnya oleh pengurus Bozz Billiard.</p>
                             </div>
+                            <div>
+                                <label for="activation_code" class="block text-xs font-medium text-[#d4d4d4] mb-1.5">Kode Aktivasi</label>
+                                <input id="activation_code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" x-model="activationCode" @keydown.enter.prevent="checkPhone()" placeholder="8 digit dari pengurus" class="w-full bg-[#151619] border border-[#333741] focus:border-[#dea538] focus:ring-1 focus:ring-[#dea538] rounded-xl px-4 py-3 text-white placeholder-[#555a66] text-sm sm:text-base transition outline-none" />
+                                <p class="text-[11px] text-[#787e8c] mt-1.5">Minta kode kepada pengurus. Kode berlaku 24 jam dan hanya bisa dipakai sekali.</p>
+                            </div>
 
                             <button 
                                 type="button" 
@@ -254,6 +259,7 @@
                         <form method="POST" action="{{ route('activate.post') }}" @submit="submitActivation($event)" :aria-busy="activating" class="space-y-3.5">
                             @csrf
                             <input type="hidden" name="phone" :value="phone" />
+                            <input type="hidden" name="activation_code" :value="activationCode" />
 
                             <div>
                                 <label class="block text-xs font-medium text-[#d4d4d4] mb-1.5">Password Baru</label>

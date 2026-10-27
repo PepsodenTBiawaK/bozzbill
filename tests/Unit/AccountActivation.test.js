@@ -11,6 +11,7 @@ function browser(t, fetchHandler) {
     });
     t.mock.method(globalThis, 'fetch', fetchHandler);
     const state = accountActivation('/check-activation', 'activation', '+6281234567890');
+    state.activationCode = '12345678';
     state.$nextTick = (callback) => callback();
     state.$refs = { loginPassword: { focus: t.mock.fn() } };
     return state;
@@ -36,7 +37,7 @@ test('an inactive account proceeds to password creation with the normalized memb
     const state = browser(t, async (url, options) => {
         assert.equal(url, '/check-activation');
         assert.equal(options.headers['X-CSRF-TOKEN'], 'csrf-token');
-        assert.deepEqual(JSON.parse(options.body), { phone: '+6281234567890' });
+        assert.deepEqual(JSON.parse(options.body), { phone: '+6281234567890', activation_code: '12345678' });
         return { ok: true, json: async () => ({ status: 'ready', user: member }) };
     });
 
@@ -112,4 +113,27 @@ test('activation submits once and can be submitted again after returning to the 
     state.submitActivation(event);
     assert.equal(state.activating, true);
     assert.equal(prevented, 1);
+});
+
+test('an activation code must contain exactly eight digits before contacting the server', async (t) => {
+    const state = browser(t, t.mock.fn());
+    state.activationCode = '1234';
+
+    await state.checkPhone();
+
+    assert.match(state.checkError, /8 digit/);
+    assert.equal(globalThis.fetch.mock.callCount(), 0);
+});
+
+test('changing a code during verification discards the old verification result', async (t) => {
+    let complete;
+    const state = browser(t, () => new Promise((resolve) => { complete = resolve; }));
+    const pending = state.checkPhone();
+    state.activationCode = '87654321';
+    complete({ ok: true, json: async () => ({ status: 'ready', user: { phone: '081234567890' } }) });
+
+    await pending;
+
+    assert.equal(state.step, 1);
+    assert.equal(state.memberInfo, null);
 });

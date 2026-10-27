@@ -121,7 +121,9 @@ test('checking unregistered phone returns 404 error message', function () {
 });
 
 test('checking unactivated phone returns ready status with member name', function () {
+    issueTestActivationCode(User::where('phone', '087777777777')->firstOrFail());
     $response = $this->postJson(route('activation.check'), [
+        'activation_code' => '12345678',
         'phone' => '087777777777',
     ]);
 
@@ -138,10 +140,12 @@ test('checking unactivated phone returns ready status with member name', functio
 
 test('unactivated member can activate account by setting password and is logged in', function () {
     $unactivated = User::where('phone', '087777777777')->first();
+    issueTestActivationCode($unactivated);
     expect($unactivated->is_active)->toBeFalse();
     expect($unactivated->password)->toBeNull();
 
     $response = $this->post(route('activate.post'), [
+        'activation_code' => '12345678',
         'phone' => '087777777777',
         'password' => 'newsecret123',
         'password_confirmation' => 'newsecret123',

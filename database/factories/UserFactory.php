@@ -48,4 +48,14 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    public function awaitingActivation(string $code = '12345678'): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'password' => null,
+            'is_active' => false,
+            'activation_code_hash' => Hash::make($code),
+            'activation_code_expires_at' => now()->addDay(),
+        ]);
+    }
 }

@@ -3,6 +3,7 @@ export default function accountActivation(checkUrl, initialTab = 'login', initia
         tab: initialTab === 'activation' ? 'activation' : 'login',
         step: 1,
         phone: initialPhone,
+        activationCode: '',
         checking: false,
         activating: false,
         checkError: '',
@@ -21,6 +22,11 @@ export default function accountActivation(checkUrl, initialTab = 'login', initia
             }
 
             const checkedPhone = this.phone;
+            const checkedCode = this.activationCode;
+            if (!/^[0-9]{8}$/.test(checkedCode)) {
+                this.checkError = 'Masukkan kode aktivasi 8 digit dari pengurus.';
+                return;
+            }
             this.checking = true;
             try {
                 const response = await fetch(checkUrl, {
@@ -30,12 +36,14 @@ export default function accountActivation(checkUrl, initialTab = 'login', initia
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({ phone: checkedPhone }),
+                    body: JSON.stringify({ phone: checkedPhone, activation_code: checkedCode }),
                 });
                 const data = await response.json();
-                if (this.phone !== checkedPhone || this.tab !== 'activation') return;
+                if (this.phone !== checkedPhone || this.activationCode !== checkedCode || this.tab !== 'activation') return;
                 if (!response.ok) {
-                    this.checkError = data.message || 'Nomor WhatsApp belum terdaftar di Komunitas Bozz.';
+                    this.checkError = response.status === 429
+                        ? 'Terlalu banyak percobaan. Tunggu sebentar sebelum mencoba lagi.'
+                        : data.message || 'Nomor WhatsApp atau kode aktivasi tidak valid.';
                     return;
                 }
                 if (data.status === 'already_active') {

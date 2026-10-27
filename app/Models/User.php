@@ -16,6 +16,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -37,6 +38,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'activation_code_hash',
     ];
 
     /**
@@ -52,6 +54,7 @@ class User extends Authenticatable
             'handicap' => Handicap::class,
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'activation_code_expires_at' => 'datetime',
         ];
     }
 
@@ -79,6 +82,14 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role?->isAdmin() ?? false;
+    }
+
+    public function hasValidActivationCode(string $code): bool
+    {
+        return preg_match('/^[0-9]{8}$/', $code) === 1
+            && $this->activation_code_hash !== null
+            && $this->activation_code_expires_at?->isFuture()
+            && Hash::check($code, $this->activation_code_hash);
     }
 
     public function isSuperadmin(): bool

@@ -145,7 +145,7 @@
                     <div>
                         <h2 class="text-lg font-bold text-white">Pengaturan Akun Anggota</h2>
                         @if (! $member->is_active)
-                            <p class="text-sm text-[#959595] mt-1">Akun belum diaktifkan. Member perlu melakukan aktivasi akun terlebih dahulu.</p>
+                            <p class="text-sm text-[#959595] mt-1">Akun belum diaktifkan. Bagikan kode aktivasi kepada anggota melalui pesan pribadi.</p>
                         @else
                             <p class="text-xs text-[#959595] mt-1">Masukkan password baru untuk mengganti password akun anggota ini.</p>
                         @endif
@@ -156,6 +156,23 @@
                         </button>
                     @endif
                 </div>
+
+                @if (! $member->is_active)
+                    <div class="mt-5 pt-5 border-t border-[#2e313a] space-y-3">
+                        @if (session('issued_activation_code.user_id') === $member->id)
+                            <div role="status" class="rounded-xl border border-[#dea538]/30 bg-[#dea538]/5 p-4">
+                                <p class="text-xs text-[#d4d4d4]">Kode aktivasi untuk {{ $member->name }}</p>
+                                <p class="mt-2 font-mono text-2xl font-bold tracking-widest text-[#dea538] select-all">{{ session('issued_activation_code.code') }}</p>
+                                <p class="mt-2 text-xs text-[#959595]">Berlaku 24 jam, sekali pakai. Kode hanya ditampilkan saat ini; salin sebelum meninggalkan halaman.</p>
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('roster.activation-code', $member) }}" class="space-y-2">
+                            @csrf
+                            <button type="submit" class="min-h-11 px-4 py-2.5 rounded-xl bg-[#dea538] hover:bg-[#c8912c] text-[#141518] text-xs font-bold cursor-pointer">{{ $member->activation_code_hash ? 'Buat Kode Aktivasi Baru' : 'Buat Kode Aktivasi' }}</button>
+                            <p class="text-xs text-[#959595]">Kode baru menggantikan kode sebelumnya. Anggota memasukkan kode ini bersama nomor WhatsApp saat aktivasi.</p>
+                        </form>
+                    </div>
+                @endif
 
                 @if ($member->is_active)
                     <form id="reset-password-form" x-show="resetOpen" x-transition.opacity style="display: none;" method="POST" action="{{ route('roster.reset-password', $member) }}" class="mt-5 pt-5 border-t border-[#2e313a] space-y-4">

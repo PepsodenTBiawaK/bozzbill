@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +48,13 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function issueTestActivationCode(User $member): string
+{
+    $attributes = User::factory()->awaitingActivation()->make()
+        ->only(['activation_code_hash', 'activation_code_expires_at']);
+    $member->forceFill($attributes)->save();
+
+    return '12345678';
 }
