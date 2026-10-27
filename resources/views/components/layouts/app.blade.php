@@ -7,6 +7,9 @@
 
     <title>{{ $title ?? 'BozzBill - Komunitas Bozz Billiard Tebet' }}</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+
     <!-- Google Fonts: Urbanist -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
