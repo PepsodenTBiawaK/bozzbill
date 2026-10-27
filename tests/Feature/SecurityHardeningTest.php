@@ -3,6 +3,8 @@
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Monolog\Handler\TestHandler;
@@ -108,4 +110,32 @@ test('user supplied text is escaped and roster search stays parameterized', func
 test('unused private storage HTTP upload and download endpoints are disabled', function () {
     $this->get('/storage/private-security-test.txt')->assertNotFound();
     $this->putJson('/storage/private-security-test.txt', ['content' => 'unexpected'])->assertNotFound();
+});
+
+test('changing a password revokes other database sessions and remembered access while keeping the current device signed in', function () {
+    config(['session.driver' => 'database']);
+    $member = User::factory()->create(['is_active' => true]);
+    $cookieName = Auth::guard()->getRecallerName();
+    $login = $this->post(route('login.post'), ['phone' => $member->phone, 'password' => 'password', 'remember' => '1'])
+        ->assertRedirect(route('home'))->assertCookie($cookieName);
+    $oldCookie = $login->getCookie($cookieName);
+    $oldToken = $member->fresh()->remember_token;
+    $oldSession = session()->getId();
+    DB::table('sessions')->insert(['id' => 'another-device-session', 'user_id' => $member->id, 'payload' => '', 'last_activity' => now()->getTimestamp()]);
+
+    $this->put(route('profile.password'), ['current_password' => 'password', 'password' => 'new-password', 'password_confirmation' => 'new-password'])
+        ->assertRedirect(route('profile'))->assertSessionHasNoErrors();
+
+    $this->assertAuthenticatedAs($member);
+    expect(session()->getId())->not->toBe($oldSession);
+    expect($member->fresh()->remember_token)->not->toBe($oldToken);
+    $this->assertDatabaseMissing('sessions', ['id' => 'another-device-session']);
+    $this->assertDatabaseMissing('sessions', ['id' => $oldSession]);
+    Auth::forgetGuards();
+    $this->get(route('home'))->assertOk();
+    session()->invalidate();
+    session()->save();
+    Auth::forgetGuards();
+    $this->withCookie($cookieName, $oldCookie->getValue())->get(route('home'))->assertRedirect(route('login'));
+    $this->assertGuest();
 });

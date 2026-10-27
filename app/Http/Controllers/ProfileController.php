@@ -114,9 +114,13 @@ class ProfileController extends Controller
             'password.min' => 'Password baru minimal harus 6 karakter.',
         ]);
 
-        $user->update([
-            'password' => Hash::make($validated['password']),
-        ]);
+        DB::transaction(function () use ($user, $validated): void {
+            $user->update([
+                'password' => Hash::make($validated['password']),
+            ]);
+            $user->revokeLoginSessions();
+        });
+        $request->session()->regenerate();
 
         return redirect()->route('profile')->with('status_success', 'Password Anda berhasil diperbarui.');
     }
