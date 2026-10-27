@@ -23,7 +23,7 @@ export default function accountActivation(checkUrl, initialTab = 'login', initia
 
             const checkedPhone = this.phone;
             const checkedCode = this.activationCode;
-            if (!/^[0-9]{8}$/.test(checkedCode)) {
+            if (checkedCode && !/^[0-9]{8}$/.test(checkedCode)) {
                 this.checkError = 'Masukkan kode aktivasi 8 digit dari pengurus.';
                 return;
             }

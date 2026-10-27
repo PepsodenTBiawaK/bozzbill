@@ -21,6 +21,7 @@ test('an active account automatically opens login with its phone, notice and pas
     const state = browser(t, async () => ({ ok: true, json: async () => ({
         status: 'already_active', phone: '081234567890', message: 'Akun sudah aktif. Silakan masuk, Bozz.',
     }) }));
+    state.activationCode = '';
 
     await state.checkPhone();
 
