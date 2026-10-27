@@ -22,7 +22,15 @@
             'p1Score' => (int) old('player1_score', $match->player1_score),
             'p2Score' => (int) old('player2_score', $match->player2_score),
             'winnerId' => (string) old($winnerField, $match->{$winnerField}),
-            'stage' => old('stage', $match->stage),
+            'stage' => old('stage', $match->stage ?? 'Penyisihan'),
+        ];
+        $stageOptions = [
+            'Penyisihan' => 'Babak Penyisihan',
+            '16 Besar' => '16 Besar',
+            'Perempat Final' => 'Perempat Final (8 Besar)',
+            'Semifinal' => 'Semifinal',
+            'Perebutan Juara 3' => 'Perebutan Juara 3',
+            'Final' => 'Final',
         ];
     @endphp
     <div class="max-w-3xl mx-auto space-y-6">
@@ -89,7 +97,14 @@
             @endif
             <div>
                 <label for="edit-stage" class="block text-xs text-[#d4d4d4] font-semibold mb-1.5">Babak / Ronde</label>
-                <input id="edit-stage" name="stage" x-model="stage" type="text" maxlength="50" value="{{ old('stage', $match->stage) }}" class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
+                <select id="edit-stage" name="stage" x-model="stage" class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-3 py-2.5 text-white text-sm outline-none">
+                    @if ($recorderValues['stage'] && ! isset($stageOptions[$recorderValues['stage']]))
+                        <option value="{{ $recorderValues['stage'] }}" selected>{{ $recorderValues['stage'] }} (tercatat)</option>
+                    @endif
+                    @foreach ($stageOptions as $value => $label)
+                        <option value="{{ $value }}" @selected($recorderValues['stage'] === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
             </div>
             @unless ($funGame->isDouble())
                 <p class="text-xs text-[#959595]">HC pemain yang tetap dalam match mengikuti catatan awal. Pemain pengganti menggunakan HC saat koreksi disimpan.</p>
