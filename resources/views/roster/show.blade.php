@@ -248,5 +248,30 @@
                 </form>
             </section>
         @endif
+        @if (auth()->user()?->isSuperadmin() && ! $member->isSuperadmin() && $member->id !== auth()->id())
+            <section class="bg-[#202227] border border-rose-500/25 rounded-3xl p-5 sm:p-6">
+                <details @if ($errors->hasAny(['current_password', 'confirmation_name', 'delete_confirmed'])) open @endif>
+                    <summary class="min-h-11 py-3 text-sm font-semibold text-rose-300 cursor-pointer">Hapus Roster Anggota</summary>
+                    <p class="text-sm text-[#959595] mt-2">Akun {{ $member->name }} akan hilang dari roster dan tidak bisa login. Histori match, skor, dan nama pemain pada event lama tetap tersimpan.</p>
+                    <form method="POST" action="{{ route('roster.destroy', $member) }}" class="mt-5 space-y-4">
+                        @csrf
+                        @method('DELETE')
+                        <div>
+                            <label for="delete-member-name" class="block text-xs font-semibold text-[#d4d4d4] mb-1.5">Ketik nama anggota: {{ $member->name }}</label>
+                            <input id="delete-member-name" name="confirmation_name" type="text" required maxlength="100" autocomplete="off" value="{{ old('confirmation_name') }}" class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+                        </div>
+                        <div>
+                            <label for="delete-member-password" class="block text-xs font-semibold text-[#d4d4d4] mb-1.5">Password Superadmin Anda</label>
+                            <input id="delete-member-password" name="current_password" type="password" required maxlength="255" autocomplete="current-password" class="w-full min-h-11 bg-[#16171a] border border-[#333741] focus:border-[#dea538] rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+                        </div>
+                        <label class="flex items-start gap-3 text-sm text-[#d4d4d4] cursor-pointer">
+                            <input type="checkbox" name="delete_confirmed" value="1" required class="mt-1 accent-[#dea538]" />
+                            <span>Saya yakin menghapus akun {{ $member->name }} dari roster.</span>
+                        </label>
+                        <button type="submit" class="min-h-11 px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-sm font-bold cursor-pointer">Hapus Akun {{ $member->name }}</button>
+                    </form>
+                </details>
+            </section>
+        @endif
     </div>
 </x-layouts.app>

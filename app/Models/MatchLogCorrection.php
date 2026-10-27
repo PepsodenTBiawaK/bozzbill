@@ -41,6 +41,6 @@ class MatchLogCorrection extends Model
 
     public function actor(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->belongsTo(User::class, 'changed_by')->withTrashed();
     }
 }

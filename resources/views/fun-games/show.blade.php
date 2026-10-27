@@ -161,7 +161,7 @@
                                     <span class="font-bold text-sm {{ ($match->isDouble() ? $match->winner_team_id == $match->team1_id : $match->winner_id == $match->player1_id) ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
                                         {{ $match->sideName(1) }}
                                         @unless ($match->isDouble())
-                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player1_hc->value }})</span>
+                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player1_hc?->value ?? '-' }})</span>
                                         @endunless
                                     </span>
 
@@ -170,7 +170,7 @@
                                     <span class="font-bold text-sm {{ ($match->isDouble() ? $match->winner_team_id == $match->team2_id : $match->winner_id == $match->player2_id) ? 'text-emerald-400 font-extrabold' : 'text-white' }}">
                                         {{ $match->sideName(2) }}
                                         @unless ($match->isDouble())
-                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player2_hc->value }})</span>
+                                            <span class="text-xs text-[#dea538] font-normal">(HC {{ $match->player2_hc?->value ?? '-' }})</span>
                                         @endunless
                                     </span>
                                 </div>
@@ -301,7 +301,7 @@
                             @if ($funGame->isDouble())
                                 <x-team-picker :teams="$funGame->teams" name="champion_team_id" label="Pasangan Juara 1" x-model="championId" :value="old('champion_team_id', '')" exclude="[runnerId, thirdId]" required />
                             @else
-                                <x-player-picker :players="$members" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
+                                <x-player-picker :players="$podiumMembers" name="champion_id" label="Juara 1" x-model="championId" :value="old('champion_id', '')" exclude="[runnerId, thirdId]" required />
                             @endif
                         </div>
 
@@ -310,7 +310,7 @@
                             @if ($funGame->isDouble())
                                 <x-team-picker :teams="$funGame->teams" name="runner_up_team_id" label="Pasangan Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_team_id', '')" exclude="[championId, thirdId]" />
                             @else
-                                <x-player-picker :players="$members" name="runner_up_id" label="Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_id', '')" exclude="[championId, thirdId]" />
+                                <x-player-picker :players="$podiumMembers" name="runner_up_id" label="Juara 2 (opsional)" x-model="runnerId" :value="old('runner_up_id', '')" exclude="[championId, thirdId]" />
                             @endif
                         </div>
 
@@ -319,7 +319,7 @@
                             @if ($funGame->isDouble())
                                 <x-team-picker :teams="$funGame->teams" name="third_place_team_id" label="Pasangan Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_team_id', '')" exclude="[championId, runnerId]" />
                             @else
-                                <x-player-picker :players="$members" name="third_place_id" label="Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_id', '')" exclude="[championId, runnerId]" />
+                                <x-player-picker :players="$podiumMembers" name="third_place_id" label="Juara 3 (opsional)" x-model="thirdId" :value="old('third_place_id', '')" exclude="[championId, runnerId]" />
                             @endif
                         </div>
 

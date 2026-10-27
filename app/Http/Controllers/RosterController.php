@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DeleteRoster;
 use App\Enums\FunGameStatus;
 use App\Enums\Handicap;
 use App\Enums\UserRole;
@@ -409,6 +410,31 @@ class RosterController extends Controller
 
         return redirect()->route('roster.show', $user)
             ->with('status_success', 'Jabatan akun berhasil diperbarui. Pemain perlu masuk kembali; histori tetap tersimpan.');
+    }
+
+    public function destroy(Request $request, User $user, DeleteRoster $deleteRoster): RedirectResponse
+    {
+        $actor = $request->user()->fresh();
+        abort_unless($actor?->isSuperadmin(), 403);
+        abort_if($actor->is($user) || $user->isSuperadmin(), 403);
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string', 'max:255'],
+            'confirmation_name' => ['required', 'string', 'max:100'],
+            'delete_confirmed' => ['accepted'],
+        ], [
+            'current_password.required' => 'Masukkan password Superadmin Anda.',
+            'confirmation_name.required' => 'Ketik nama anggota yang akan dihapus.',
+            'delete_confirmed.accepted' => 'Centang konfirmasi penghapusan akun.',
+        ]);
+        if (! Hash::check($validated['current_password'], $actor->password ?? '')) {
+            throw ValidationException::withMessages(['current_password' => 'Password Superadmin tidak sesuai. Akun belum dihapus.']);
+        }
+
+        $deleteRoster->handle($actor, $user, $validated['confirmation_name']);
+
+        return redirect()->route('roster', ['tab' => 'roster'])
+            ->with('status_success', 'Akun '.$user->name.' dihapus dari roster. Histori match dan prestasi event tetap tersimpan.');
     }
 
     private function recordAccountChange(User $target, string $field, ?string $oldValue, string $newValue, int $changedBy): void

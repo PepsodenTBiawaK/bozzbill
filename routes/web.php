@@ -49,6 +49,7 @@ Route::middleware(['auth', 'throttle:application'])->group(function (): void {
     Route::get('/roster', [RosterController::class, 'index'])->name('roster');
     Route::post('/members', [RosterController::class, 'storeMember'])->name('members.store');
     Route::get('/roster/{user}', [RosterController::class, 'show'])->name('roster.show');
+    Route::delete('/roster/{user}', [RosterController::class, 'destroy'])->middleware(['throttle:account-security', 'throttle:roster-deletion'])->name('roster.destroy');
     Route::post('/roster/{user}/activation-code', [RosterController::class, 'issueActivationCode'])->middleware('throttle:account-security')->name('roster.activation-code');
     Route::post('/roster/{user}/reset-password', [RosterController::class, 'resetPassword'])->middleware('throttle:account-security')->name('roster.reset-password');
     Route::put('/roster/{user}/phone', [RosterController::class, 'updatePhone'])->middleware('throttle:account-security')->name('roster.phone');

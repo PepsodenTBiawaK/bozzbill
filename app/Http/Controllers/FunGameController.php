@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator as ValidatorInstance;
 use Illuminate\View\View;
@@ -77,6 +79,9 @@ class FunGameController extends Controller
         return view('fun-games.show', [
             'funGame' => $funGame,
             'members' => $members,
+            'podiumMembers' => User::withTrashed()->where(function (Builder $query) use ($funGame): void {
+                $query->whereNull('deleted_at')->orWhereIn('id', $this->eventParticipantIds($funGame));
+            })->orderBy('name')->get(),
             'teams' => $funGame->teams,
         ]);
     }
@@ -110,6 +115,9 @@ class FunGameController extends Controller
             ->latest()
             ->take(10)
             ->get();
+
+        $activeEvent->setRelation('teams', $activeEvent->teams()->with(['player1', 'player2'])->orderBy('id')->get()
+            ->filter(fn (FunGameTeam $team): bool => ! $team->player1->trashed() && ! $team->player2->trashed())->values());
 
         return view('fun-games.quick-logger', [
             'event' => $activeEvent,
@@ -248,8 +256,8 @@ class FunGameController extends Controller
     private function validatedTeam(Request $request): array
     {
         $validated = $request->validate([
-            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
-            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
         ]);
         $validated = array_map(fn (int|string $id): int => (int) $id, $validated);
 
@@ -263,7 +271,10 @@ class FunGameController extends Controller
     /** @param array{player1_id: int, player2_id: int} $players */
     private function ensurePlayersAvailable(FunGame $funGame, array $players, ?FunGameTeam $except = null): void
     {
-        User::query()->whereIn('id', array_values($players))->orderBy('id')->lockForUpdate()->get();
+        $available = User::query()->whereIn('id', array_values($players))->orderBy('id')->lockForUpdate()->get();
+        if ($available->count() !== 2) {
+            throw ValidationException::withMessages(['player1_id' => 'Anggota yang sudah dihapus tidak dapat dipilih untuk pasangan baru.']);
+        }
 
         foreach ($players as $field => $playerId) {
             $exists = $funGame->teams()->when($except !== null, fn (Builder $query): Builder => $query->whereKeyNot($except->id))
@@ -323,11 +334,17 @@ class FunGameController extends Controller
         abort_unless($actor?->isAdmin(), 403);
         abort_unless($funGame->isOpen() || ($funGame->isCompleted() && $actor->isSuperadmin()), 403, 'Event sudah ditutup. Koreksi match hanya tersedia untuk superadmin pada event yang selesai.');
 
+        $funGame->loadMissing(['teams.player1', 'teams.player2']);
+        $funGame->setRelation('teams', $funGame->teams->filter(fn (FunGameTeam $team): bool => in_array($team->id, [$match->team1_id, $match->team2_id], true)
+            || (! $team->player1->trashed() && ! $team->player2->trashed()))->values());
+
         return view('fun-games.edit-match', [
             'funGame' => $funGame,
             'match' => $match->load(['player1', 'player2', 'team1.player1', 'team1.player2', 'team2.player1', 'team2.player2']),
-            'members' => User::query()->orderBy('name')->get(),
-            'teams' => $funGame->teams()->with(['player1', 'player2'])->orderBy('id')->get(),
+            'members' => User::withTrashed()->where(function (Builder $query) use ($match): void {
+                $query->whereNull('deleted_at')->orWhereIn('id', [$match->player1_id, $match->player2_id]);
+            })->orderBy('name')->get(),
+            'teams' => $funGame->teams,
         ]);
     }
 
@@ -456,7 +473,7 @@ class FunGameController extends Controller
             $this->ensureMatchesEditable($event);
             abort_unless($request->user()->fresh()->isAdmin(), 403);
             $target = $event->matches()->lockForUpdate()->findOrFail($match->id);
-            $winner = $target->winner_id !== null ? User::query()->lockForUpdate()->findOrFail($target->winner_id) : null;
+            $winner = $target->winner_id !== null ? User::withTrashed()->lockForUpdate()->findOrFail($target->winner_id) : null;
             $target->delete();
             if ($winner !== null) {
                 $this->syncGiantKillerBadge($winner);
@@ -494,9 +511,9 @@ class FunGameController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'champion_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
-            'runner_up_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')],
-            'third_place_id' => ['bail', 'nullable', 'integer', Rule::exists('users', 'id')],
+            'champion_id' => ['bail', 'required', 'integer', $this->selectablePlayerRule($this->eventParticipantIds($funGame))],
+            'runner_up_id' => ['bail', 'nullable', 'integer', $this->selectablePlayerRule($this->eventParticipantIds($funGame))],
+            'third_place_id' => ['bail', 'nullable', 'integer', $this->selectablePlayerRule($this->eventParticipantIds($funGame))],
         ]);
 
         $validator->after(function (ValidatorInstance $validator) use ($request): void {
@@ -547,7 +564,7 @@ class FunGameController extends Controller
                 'third_place_id' => $validated['third_place_id'] ?? null,
             ]);
 
-            $champion = User::query()->lockForUpdate()->findOrFail($validated['champion_id']);
+            $champion = User::withTrashed()->lockForUpdate()->findOrFail($validated['champion_id']);
             $championBadge = Badge::where('slug', 'champion')->first();
 
             if ($championBadge && ! $champion->badges()->where('badge_id', $championBadge->id)->exists()) {
@@ -695,10 +712,15 @@ class FunGameController extends Controller
     {
         if ($event->isDouble()) {
             $teams = $event->teams()->whereIn('id', [$validated['team1_id'], $validated['team2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            User::withTrashed()->whereIn('id', $teams->flatMap(fn (FunGameTeam $team): array => $team->participantIds())->unique())->orderBy('id')->lockForUpdate()->get();
 
             foreach (['team1_id', 'team2_id'] as $field) {
                 if (! $teams->has($validated[$field])) {
                     throw ValidationException::withMessages([$field => 'Pasangan tidak lagi terdaftar pada Fun Game ini.']);
+                }
+                $team = $teams->get($validated[$field]);
+                if (($team->player1->trashed() || $team->player2->trashed()) && ! in_array($team->id, [$existing?->team1_id, $existing?->team2_id], true)) {
+                    throw ValidationException::withMessages([$field => 'Pasangan dengan anggota yang sudah dihapus hanya tersedia pada histori match sebelumnya.']);
                 }
             }
 
@@ -716,7 +738,13 @@ class FunGameController extends Controller
         }
 
         $snapshots = $existing !== null ? [$existing->player1_id => $existing->player1_hc, $existing->player2_id => $existing->player2_hc] : [];
-        $players = User::query()->whereIn('id', [$validated['player1_id'], $validated['player2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $players = User::withTrashed()->whereIn('id', [$validated['player1_id'], $validated['player2_id']])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        foreach (['player1_id', 'player2_id'] as $field) {
+            $player = $players->get($validated[$field]);
+            if ($player === null || ($player->trashed() && ! array_key_exists($player->id, $snapshots))) {
+                throw ValidationException::withMessages([$field => 'Anggota yang sudah dihapus tidak dapat dipilih untuk match baru.']);
+            }
+        }
         $firstHc = array_key_exists($validated['player1_id'], $snapshots) ? $snapshots[$validated['player1_id']] : $players->get($validated['player1_id'])->handicap;
         $secondHc = array_key_exists($validated['player2_id'], $snapshots) ? $snapshots[$validated['player2_id']] : $players->get($validated['player2_id'])->handicap;
         $voor = MatchVoor::between($firstHc, $secondHc);
@@ -749,9 +777,11 @@ class FunGameController extends Controller
             return $this->validatedDoubleMatch($request, $funGame);
         }
 
+        $original = $request->route('match');
+        $retainedIds = $original instanceof MatchLog ? array_filter([$original->player1_id, $original->player2_id]) : [];
         $validator = Validator::make($request->all(), [
-            'player1_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
-            'player2_id' => ['bail', 'required', 'integer', Rule::exists('users', 'id')],
+            'player1_id' => ['bail', 'required', 'integer', $this->selectablePlayerRule($retainedIds)],
+            'player2_id' => ['bail', 'required', 'integer', $this->selectablePlayerRule($retainedIds)],
             'player1_score' => ['required', 'integer', 'min:0', 'max:50'],
             'player2_score' => ['required', 'integer', 'min:0', 'max:50'],
             'winner_id' => ['bail', 'required', 'integer'],
@@ -796,6 +826,21 @@ class FunGameController extends Controller
         }
 
         return $validated;
+    }
+
+    /** @param list<int> $retainedIds */
+    private function selectablePlayerRule(array $retainedIds = []): Exists
+    {
+        return Rule::exists('users', 'id')->where(fn (QueryBuilder $query): QueryBuilder => $query->where(
+            fn (QueryBuilder $users): QueryBuilder => $users->whereNull('deleted_at')->orWhereIn('id', $retainedIds),
+        ));
+    }
+
+    /** @return list<int> */
+    private function eventParticipantIds(FunGame $event): array
+    {
+        return $event->matches()->get(['player1_id', 'player2_id'])
+            ->flatMap(fn (MatchLog $match): array => [$match->player1_id, $match->player2_id])->filter()->unique()->values()->all();
     }
 
     /** @return array{team1_id: int, team2_id: int, player1_score: int|string, player2_score: int|string, winner_team_id: int, stage?: ?string} */

@@ -86,17 +86,17 @@ class MatchLog extends Model
 
     public function player1(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'player1_id');
+        return $this->belongsTo(User::class, 'player1_id')->withTrashed();
     }
 
     public function player2(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'player2_id');
+        return $this->belongsTo(User::class, 'player2_id')->withTrashed();
     }
 
     public function winner(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'winner_id');
+        return $this->belongsTo(User::class, 'winner_id')->withTrashed();
     }
 
     public function team1(): BelongsTo
@@ -200,7 +200,7 @@ class MatchLog extends Model
 
     public function recorder(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'recorded_by');
+        return $this->belongsTo(User::class, 'recorded_by')->withTrashed();
     }
 
     public function loserId(): ?int

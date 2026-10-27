@@ -40,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('account-security', fn (Request $request): Limit => Limit::perMinute(10)
             ->by('account-security:'.$request->user()->id));
+        RateLimiter::for('roster-deletion', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by('roster-deletion:'.$request->user()->id));
     }
 
     private function accountFingerprint(Request $request): string

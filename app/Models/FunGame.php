@@ -56,7 +56,7 @@ class FunGame extends Model
 
     public function podiumPlayers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'fun_game_podium')
+        return $this->belongsToMany(User::class, 'fun_game_podium')->withTrashed()
             ->withPivot('position')->orderBy('fun_game_podium.id');
     }
 
@@ -80,22 +80,22 @@ class FunGame extends Model
 
     public function champion(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'champion_id');
+        return $this->belongsTo(User::class, 'champion_id')->withTrashed();
     }
 
     public function runnerUp(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'runner_up_id');
+        return $this->belongsTo(User::class, 'runner_up_id')->withTrashed();
     }
 
     public function thirdPlace(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'third_place_id');
+        return $this->belongsTo(User::class, 'third_place_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
     }
 
     public function isCompleted(): bool

@@ -23,12 +23,12 @@ class FunGameTeam extends Model
 
     public function player1(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'player1_id');
+        return $this->belongsTo(User::class, 'player1_id')->withTrashed();
     }
 
     public function player2(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'player2_id');
+        return $this->belongsTo(User::class, 'player2_id')->withTrashed();
     }
 
     public function displayName(): string

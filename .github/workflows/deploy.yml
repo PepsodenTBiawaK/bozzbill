@@ -121,6 +121,7 @@ jobs:
           tests/Feature/CommunityHistoryImportTest.php
           tests/Feature/ActivationCodeTest.php
           tests/Feature/SecurityHardeningTest.php
+          tests/Feature/RosterDeletionTest.php
 
       - name: Prepare production dependencies
         run: |

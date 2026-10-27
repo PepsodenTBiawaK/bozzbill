@@ -171,7 +171,7 @@ class ImportCommunityHistory extends Command
         $source = $data['source'];
         foreach ($data['members'] as $member) {
             $key = $source.':member:'.sha1($member['name']);
-            $user = User::where('source_key', $key)->first();
+            $user = User::withTrashed()->where('source_key', $key)->first();
             $firstImport = $user === null;
             if ($member['name'] === 'Fadil') {
                 if ($user && ! $user->is($owner)) {
