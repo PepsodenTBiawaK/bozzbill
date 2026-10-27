@@ -98,6 +98,45 @@ test('sensitive actions are logged with identifiers without request credentials 
     expect(json_encode($records))->not->toContain('never-log-this-password', session('issued_activation_code.code'), $member->phone);
 });
 
+test('requests rejected before authentication receive a tracking identifier and a security log entry', function () {
+    $handler = new TestHandler;
+    Log::channel('security')->getLogger()->setHandlers([$handler]);
+
+    $response = $this->getJson(route('dashboard'))->assertUnauthorized()->assertHeader('X-Request-ID');
+
+    $records = $handler->getRecords();
+    expect($records)->toHaveCount(1);
+    expect($records[0]->message)->toBe('access.denied');
+    expect($records[0]->context)->toMatchArray(['request_id' => $response->headers->get('X-Request-ID'), 'route' => 'dashboard', 'status' => 401]);
+});
+
+test('blocked login attempts keep their tracking identifier and are recorded in the security log', function () {
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        $this->postJson(route('login.post'), ['phone' => '081234567890', 'password' => 'incorrect'])->assertUnprocessable();
+    }
+    $handler = new TestHandler;
+    Log::channel('security')->getLogger()->setHandlers([$handler]);
+
+    $this->postJson(route('login.post'), ['phone' => '081234567890', 'password' => 'incorrect'])
+        ->assertTooManyRequests()->assertHeader('X-Request-ID');
+
+    expect($handler->getRecords())->toHaveCount(1);
+    expect($handler->getRecords()[0]->message)->toBe('rate_limit.exceeded');
+});
+
+test('cross site form submissions are rejected and recorded before reaching authentication', function () {
+    app()->detectEnvironment(fn (): string => 'production');
+    $handler = new TestHandler;
+    Log::channel('security')->getLogger()->setHandlers([$handler]);
+
+    $this->post(route('login.post'), ['phone' => '081234567890', 'password' => 'incorrect'])
+        ->assertStatus(419)->assertHeader('X-Request-ID');
+
+    expect($handler->getRecords())->toHaveCount(1);
+    expect($handler->getRecords()[0]->message)->toBe('access.denied');
+    $this->assertGuest();
+});
+
 test('user supplied text is escaped and roster search stays parameterized', function () {
     $member = User::factory()->create();
     $text = '<script>alert("unsafe")</script>';
